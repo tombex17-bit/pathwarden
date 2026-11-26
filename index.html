@@ -9,8 +9,8 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-    <script type="module" crossorigin src="./assets/index-BynPrVoE.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DhBzV4jZ.css">
+    <script type="module" crossorigin src="./assets/index-CNtE4U8z.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BK_eH40c.css">
   </head>
   <body>
     <div id="game">
@@ -27,6 +27,10 @@
       </header>
       <main id="stage">
         <canvas id="map" aria-label="Game map"></canvas>
+        <div id="map-badges">
+          <p id="paused-badge" role="status" hidden>Paused</p>
+          <p id="challenge-badge" role="status" hidden></p>
+        </div>
         <p id="banner" role="status" hidden></p>
         <p id="toast" role="status" hidden></p>
         <p id="warning" role="status" hidden></p>
@@ -35,7 +39,9 @@
           <button id="away-close" type="button" class="primary">Continue</button>
         </div>
       </main>
-      <div id="abilities" role="toolbar" aria-label="Abilities"></div>
+      <div id="abilities" role="toolbar" aria-label="Abilities">
+        <button id="pause" class="ability" type="button" aria-pressed="false"><span class="name" id="pause-label">Pause</span><small>Space</small></button>
+      </div>
       <aside id="panel">
         <div id="guide" role="status" hidden>
           <p id="guide-text"></p>
@@ -77,6 +83,7 @@
       <section>
         <h3>Prestige</h3>
         <p id="prestige-text"></p>
+        <label class="option"><input id="keep-layout" type="checkbox" /> Keep my tower layout: the Warden stays, and Auto-upgrade rebuilds towers where they stood</label>
         <button id="prestige" type="button" class="primary">Prestige</button>
         <div id="prestige-confirm" hidden>
           <p>Gold, towers and this run's progress are reset. Cores, upgrades and unlocked abilities stay.</p>
@@ -102,6 +109,7 @@
         <h3>Challenges</h3>
         <p id="challenge-text"></p>
         <div id="challenges"></div>
+        <div id="challenge-drop"></div>
       </section>
       <section>
         <h3>Sound</h3>

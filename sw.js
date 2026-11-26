@@ -1,5 +1,5 @@
-const CACHE = "tdi-2d8fc2ad30a1";
-const FILES = ["./","assets/index-BynPrVoE.js","assets/index-DhBzV4jZ.css","icons/icon-192.png","icons/icon-512.png","index.html","manifest.webmanifest"];
+const CACHE = "tdi-53259d2f3190";
+const FILES = ["./","assets/index-BK_eH40c.css","assets/index-CNtE4U8z.js","icons/icon-192.png","icons/icon-512.png","index.html","manifest.webmanifest"];
 // Hosts may vary responses by headers such as Origin, which module scripts send and precaching does not.
 const MATCH = { ignoreSearch: true, ignoreVary: true };
 
