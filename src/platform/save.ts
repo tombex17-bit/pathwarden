@@ -5,9 +5,9 @@ import { createEnemy } from '../sim/enemies';
 import { MAZE_CELLS, isOpenOnly, layoutOf, mazeRoute } from '../sim/path';
 import { createState, refreshDamage } from '../sim/sim';
 import type { Enemy, State, Tower } from '../sim/types';
-import { DEFAULT_VOLUME, GUIDE_DONE, SPEEDS, type Settings, type Speed } from './settings';
+import { DEFAULT_MUSIC_VOLUME, DEFAULT_VOLUME, GUIDE_DONE, SPEEDS, type Settings, type Speed } from './settings';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 const EXPORT_PREFIX = 'TD1';
 const MAX_ITEMS = 500;
 
@@ -198,9 +198,12 @@ function readState(v: unknown): State {
 }
 
 function readSettings(v: unknown): Settings {
-  const { speed, volume, muted, guide } = obj(v);
+  const { speed, volume, muted, guide, musicVolume, musicMuted } = obj(v);
   check(SPEEDS.includes(speed as Speed));
-  return { speed: speed as Speed, volume: real(volume, 0, 1), muted: bool(muted), guide: int(guide, 0, GUIDE_DONE) };
+  return {
+    speed: speed as Speed, volume: real(volume, 0, 1), muted: bool(muted), guide: int(guide, 0, GUIDE_DONE),
+    musicVolume: real(musicVolume, 0, 1), musicMuted: bool(musicMuted),
+  };
 }
 
 /** Each entry turns a save of that version into the next version. */
@@ -245,6 +248,8 @@ const MIGRATIONS: Record<number, (save: Raw) => Raw> = {
       },
     };
   },
+  // Version 7 added music, on at the default volume.
+  6: (save) => ({ ...save, v: 7, settings: { ...obj(save.settings), musicVolume: DEFAULT_MUSIC_VOLUME, musicMuted: false } }),
   // Version 6 added the Wilds and the Maze, Overdrive, Rally and challenges.
   5: (save) => {
     const state = obj(save.state);

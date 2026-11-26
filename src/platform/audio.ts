@@ -29,6 +29,20 @@ export class SoundPlayer {
     if (this.ctx.state === 'suspended') void this.ctx.resume();
   }
 
+  /** The audio context, once the first user input has created it. */
+  get context(): AudioContext | undefined {
+    return this.ctx;
+  }
+
+  /** Silences everything while the tab is hidden; the game is paused then too. */
+  pause(): void {
+    if (this.ctx?.state === 'running') void this.ctx.suspend();
+  }
+
+  resume(): void {
+    if (this.ctx?.state === 'suspended') void this.ctx.resume();
+  }
+
   setVolume(volume: number, muted: boolean): void {
     this.volume = volume;
     this.muted = muted;

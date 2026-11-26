@@ -4,8 +4,7 @@ import {
   type BuyAmount, type EnemyKind, type SpecChoice, type TowerKind,
 } from '../config/balance';
 import { MAPS, MAZE } from '../config/map';
-import { COLORS } from '../render/palette';
-import { fillTower, traceEnemy } from '../render/shapes';
+import { drawEnemy, drawTower } from '../render/art';
 import { buildCost, canAfford, levelsFor, sellValue, upgradeCost } from '../sim/economy';
 import { canCallWave, canEditWalls } from '../sim/sim';
 import { rankOf } from '../sim/stats';
@@ -25,8 +24,7 @@ function towerIcon(kind: TowerKind): HTMLCanvasElement {
   const ctx = icon.getContext('2d');
   if (ctx) {
     ctx.scale(size * 1.4, size * 1.4);
-    ctx.fillStyle = COLORS[kind];
-    fillTower(ctx, kind, { x: 1 / 2.8, y: 1 / 2.8 });
+    drawTower(ctx, kind, { x: 1 / 2.8, y: 1 / 2.8 }, -Math.PI / 2);
   }
   return icon;
 }
@@ -40,9 +38,7 @@ function enemyIcon(kind: EnemyKind): HTMLCanvasElement {
   if (ctx) {
     // One cell fills the icon, so sizes compare as on the map.
     ctx.scale(size, size);
-    ctx.fillStyle = kind === 'boss' ? COLORS.boss : COLORS.enemy;
-    traceEnemy(ctx, kind, { x: 0.5, y: 0.5 });
-    ctx.fill();
+    drawEnemy(ctx, kind, { x: 0.5, y: 0.55 }, { x: 1, y: 0 }, false);
   }
   icon.setAttribute('aria-hidden', 'true');
   return icon;

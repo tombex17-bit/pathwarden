@@ -11,7 +11,7 @@ import type { Command, State } from '../../src/sim/types';
 import { addTower, run, until } from './helpers';
 
 const NOW = 1_800_000_000_000;
-const SETTINGS: Settings = { speed: 2, volume: 0.35, muted: true, guide: 3 };
+const SETTINGS: Settings = { speed: 2, volume: 0.35, muted: true, guide: 3, musicVolume: 0.25, musicMuted: true };
 
 /** A busy game in the middle of a wave, with every kind of content in play. */
 function busy(): State {
@@ -215,7 +215,7 @@ describe('versions', () => {
       for (const k of ['cores', 'prestiges', 'clearedThisRun', 'layout', 'owned', 'options', 'holdForTower']) delete x.state[k];
     }, s);
     const data = load(v0);
-    expect(data.settings).toEqual({ speed: 1, volume: 0.6, muted: false, guide: 15 });
+    expect(data.settings).toEqual({ speed: 1, volume: 0.6, muted: false, guide: 15, musicVolume: 0.5, musicMuted: false });
     expect(data.state.holdForTower).toBe(false);
     expect(data.state.history).toEqual([]);
     expect(data.state.waveGold.toNumber()).toBe(0);
@@ -228,7 +228,7 @@ describe('versions', () => {
 
 it('version 2 saves get sound on at the default volume', () => {
   const v2 = edited((x) => { x.v = 2; x.settings = { speed: 3 }; delete x.state.holdForTower; });
-  expect(load(v2).settings).toEqual({ speed: 3, volume: 0.6, muted: false, guide: 15 });
+  expect(load(v2).settings).toEqual({ speed: 3, volume: 0.6, muted: false, guide: 15, musicVolume: 0.5, musicMuted: false });
 });
 
 it('version 3 saves skip the guide and the first-wave hold', () => {

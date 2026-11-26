@@ -5,9 +5,19 @@ export type Speed = (typeof SPEEDS)[number];
 export const GUIDE_STEPS = { built: 1, upgraded: 2, meteor: 4, second: 8 } as const;
 export const GUIDE_DONE = 15;
 
-/** Volume runs from 0 to 1. Muting keeps the volume for later. */
-export interface Settings { speed: Speed; volume: number; muted: boolean; guide: number }
+/** Volumes run from 0 to 1. Muting keeps the volume for later. */
+export interface Settings {
+  speed: Speed;
+  volume: number;
+  muted: boolean;
+  guide: number;
+  musicVolume: number;
+  musicMuted: boolean;
+}
 
 export const DEFAULT_VOLUME = 0.6;
+export const DEFAULT_MUSIC_VOLUME = 0.5;
 
-export const defaultSettings = (): Settings => ({ speed: 1, volume: DEFAULT_VOLUME, muted: false, guide: 0 });
+export const defaultSettings = (): Settings => ({
+  speed: 1, volume: DEFAULT_VOLUME, muted: false, guide: 0, musicVolume: DEFAULT_MUSIC_VOLUME, musicMuted: false,
+});

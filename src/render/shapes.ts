@@ -1,4 +1,4 @@
-import type { EnemyKind, TowerKind } from '../config/balance';
+import type { EnemyKind } from '../config/balance';
 import type { Point } from '../config/map';
 
 export const ENEMY_RADIUS: Readonly<Record<EnemyKind, number>> = {
@@ -48,33 +48,5 @@ export function traceEnemy(ctx: Ctx, kind: EnemyKind, at: Point): void {
         [-t, -r], [t, -r], [t, -t], [r, -t], [r, t], [t, t], [t, r], [-t, r], [-t, t], [-r, t], [-r, -t], [-t, -t],
       ]);
     }
-  }
-}
-
-/** Fills the tower's silhouette. Only the beam's ring has a hole. */
-export function fillTower(ctx: Ctx, kind: TowerKind, at: Point): void {
-  traceTower(ctx, kind, at);
-  ctx.fill(kind === 'beam' ? 'evenodd' : 'nonzero');
-}
-
-function traceTower(ctx: Ctx, kind: TowerKind, at: Point): void {
-  ctx.beginPath();
-  switch (kind) {
-    case 'bolt':
-      return path(ctx, at, [[0, -0.28], [0.2, 0], [0, 0.28], [-0.2, 0]]);
-    case 'cannon':
-      return path(ctx, at, [[-0.22, -0.22], [0.22, -0.22], [0.22, 0.22], [-0.22, 0.22]]);
-    case 'frost':
-      // Six-pointed star.
-      polygon(ctx, at, 0.29, 3, -Math.PI / 2);
-      return path(ctx, at, [[0, 0.29], [-0.251, -0.145], [0.251, -0.145]]);
-    case 'beam':
-      circle(ctx, at, 0.26);
-      return circle(ctx, at, 0.13);
-    case 'tesla':
-      return path(ctx, at, [[0.06, -0.3], [-0.2, 0.06], [-0.03, 0.06], [-0.06, 0.3], [0.2, -0.06], [0.03, -0.06]]);
-    case 'warden':
-      // A shield, point down.
-      return path(ctx, at, [[-0.24, -0.25], [0.24, -0.25], [0.24, 0.06], [0, 0.3], [-0.24, 0.06]]);
   }
 }

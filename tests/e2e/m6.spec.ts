@@ -6,10 +6,14 @@ import { fitView, toScreen } from '../../src/render/view';
 import { M6_SIZES, clickSlot, collectErrors, pageScrolls, seedSave } from './helpers';
 import { boss, crowded, early, prestigeReady, save } from './scenes';
 
-/** SPEC section 12's table, written out again so the game's own palette file is checked against it. */
+/** The tables of SPEC sections 12 and 22, written out again so the game's own palette file is checked against them. */
 const SPEC_COLORS = new Set([
   '#12161F', '#1B2130', '#2A3347', '#E8ECF4', '#9AA6BD', '#F4C95D', '#F2845C', '#6EC5FF',
   '#E06CF0', '#8C8CFF', '#E5566D', '#FF2E55', '#FFD66B', '#57E0B5', '#6BD68A',
+  // Section 22: art shades.
+  '#161B26', '#13201C', '#162420', '#191B24', '#1D2029', '#211A1B', '#261E1F', '#0F1D17', '#13221B',
+  '#222A3B', '#36415A', '#3A4560', '#4E5B7A', '#2E6650', '#3E8668', '#4A3A30', '#34507E',
+  '#B8923A', '#B35E40', '#3C88B8', '#9E46AD', '#5C5CB8', '#3F8C58', '#A33A4D', '#F28A9B', '#B01F3B',
 ]);
 
 interface Probe { colors: string[]; alphas: number[]; contexts: number; tones: number }
@@ -212,7 +216,8 @@ test('sound: nothing before input, mute and volume obeyed and kept after reload'
   const errors = collectErrors(page);
   await addProbe(page);
   // A full field keeps towers firing, so silence below means muting worked, not a quiet moment.
-  await seedSave(page, save(crowded()));
+  // Music is checked on its own below; here it stays off so only sound effects count.
+  await seedSave(page, save(crowded(), { musicMuted: true }));
   await page.goto('./');
   await page.waitForTimeout(1500);
   expect(await probe(page)).toMatchObject({ contexts: 0, tones: 0 });
@@ -257,6 +262,36 @@ test('sound: nothing before input, mute and volume obeyed and kept after reload'
   await expect(page.locator('#volume-text')).toHaveText('35%');
   const settings = await page.evaluate(() => JSON.parse(localStorage.getItem('tdi.save')!).settings);
   expect(settings).toMatchObject({ speed: 1, volume: 0.35, muted: false });
+  expect(errors).toEqual([]);
+});
+
+test('music: nothing before input, then plays; mute and volume obeyed and kept', async ({ page }) => {
+  const errors = collectErrors(page);
+  await addProbe(page);
+  // A brand-new game waits for its first tower, so no game sounds play: only music.
+  await page.goto('./');
+  await page.waitForTimeout(1500);
+  expect(await probe(page)).toMatchObject({ contexts: 0, tones: 0 });
+  await page.locator('#panel-title').click();
+  await expect.poll(async () => (await probe(page)).tones, { timeout: 10_000 }).toBeGreaterThan(3);
+
+  await page.locator('#menu-open').click();
+  await expect(page.locator('#music-volume')).toHaveValue('50');
+  await page.locator('#music-muted').check();
+  // Notes already scheduled may still start; after that, nothing new.
+  await page.waitForTimeout(1500);
+  const muted = (await probe(page)).tones;
+  await page.waitForTimeout(3000);
+  expect((await probe(page)).tones).toBe(muted);
+
+  await page.locator('#music-volume').fill('20');
+  await expect(page.locator('#music-volume-text')).toHaveText('20%');
+  await page.reload();
+  await page.locator('#menu-open').click();
+  await expect(page.locator('#music-muted')).toBeChecked();
+  await expect(page.locator('#music-volume')).toHaveValue('20');
+  const settings = await page.evaluate(() => JSON.parse(localStorage.getItem('tdi.save')!).settings);
+  expect(settings).toMatchObject({ musicVolume: 0.2, musicMuted: true });
   expect(errors).toEqual([]);
 });
 

@@ -222,5 +222,5 @@ it.each([[0, '0 s'], [59.9, '59 s'], [60, '1 min 0 s'], [125, '2 min 5 s'], [360
 });
 
 it('new games run at 1x', () => {
-  expect(defaultSettings()).toEqual({ speed: 1, volume: 0.6, muted: false, guide: 0 });
+  expect(defaultSettings()).toEqual({ speed: 1, volume: 0.6, muted: false, guide: 0, musicVolume: 0.5, musicMuted: false });
 });

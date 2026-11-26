@@ -4,6 +4,7 @@ import { SaveStore } from './platform/save-store';
 import { Session, deservesSummary, type Away, type OnResult } from './platform/session';
 import { SPEEDS, defaultSettings } from './platform/settings';
 import { SoundPlayer } from './platform/audio';
+import { MusicPlayer } from './platform/music';
 import { SoundPicker } from './platform/sounds';
 import { registerOffline } from './platform/offline';
 import { claimTab } from './platform/tab-lock';
@@ -32,6 +33,7 @@ let lastSave = 0;
 /** Where the mouse is, in pixels on the page; unset for touch. */
 let pointer: Point | undefined;
 const player = new SoundPlayer();
+const music = new MusicPlayer();
 const picker = new SoundPicker();
 const PURCHASES = new Set<Command['type']>(['build', 'upgrade', 'specialize', 'buyPermanent']);
 
@@ -58,6 +60,12 @@ const menu = new Menu({
     player.setVolume(volume, muted);
     save();
   },
+  setMusic: (musicVolume, musicMuted) => {
+    if (!session) return;
+    Object.assign(session.settings, { musicVolume, musicMuted });
+    music.setVolume(musicVolume, musicMuted);
+    save();
+  },
 }, send);
 
 const guide = new Guide(() => session?.settings, () => save());
@@ -76,6 +84,7 @@ function run(data: SaveData): void {
   showAway(session.loadedAway);
   setText(byId('speed'), `${data.settings.speed}x`);
   player.setVolume(data.settings.volume, data.settings.muted);
+  music.setVolume(data.settings.musicVolume, data.settings.musicMuted);
 }
 
 function replaceGame(data: SaveData): void {
@@ -183,14 +192,19 @@ byId('speed').addEventListener('click', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     session?.hide(Date.now());
+    player.pause();
     save();
   } else {
+    player.resume();
     showAway(session?.show(Date.now()));
   }
 });
 window.addEventListener('pagehide', save);
 // Browsers let audio start only from user input (SPEC section 13).
-for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => player.unlock(), { capture: true });
+for (const type of ['pointerdown', 'keydown'] as const) window.addEventListener(type, () => {
+  player.unlock();
+  if (player.context) music.attach(player.context);
+}, { capture: true });
 registerOffline();
 
 let last = performance.now();
@@ -202,6 +216,8 @@ function frame(now: number): void {
     showAway(away);
     renderer.onEvents(events);
     for (const sound of picker.pick(events, now)) player.play(sound);
+    // Boss fights get the tenser music.
+    music.mood = session.state.enemies.some((e) => e.kind === 'boss') ? 'tense' : 'calm';
     hud.onEvents(events);
     let preview;
     if (abilities.aiming && pointer) {

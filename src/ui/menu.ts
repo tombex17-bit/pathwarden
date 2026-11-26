@@ -17,6 +17,7 @@ export interface MenuActions {
   /** The running game's settings, or undefined while no game is running. */
   settings(): Settings | undefined;
   setSound(volume: number, muted: boolean): void;
+  setMusic(volume: number, muted: boolean): void;
 }
 
 const on = (id: string, action: () => void): void => byId(id).addEventListener('click', action);
@@ -34,6 +35,8 @@ export class Menu {
   private readonly prestigeButton = byId<HTMLButtonElement>('prestige');
   private readonly muted = byId<HTMLInputElement>('muted');
   private readonly volume = byId<HTMLInputElement>('volume');
+  private readonly musicMuted = byId<HTMLInputElement>('music-muted');
+  private readonly musicVolume = byId<HTMLInputElement>('music-volume');
   private readonly toggles = {
     autoUpgrade: byId<HTMLInputElement>('auto-upgrade'),
     autoCast: byId<HTMLInputElement>('auto-cast'),
@@ -111,6 +114,13 @@ export class Menu {
     this.muted.addEventListener('change', sound);
     this.volume.addEventListener('change', sound);
     this.volume.addEventListener('input', () => this.showVolume());
+    const music = (): void => {
+      this.showVolume();
+      actions.setMusic(Number(this.musicVolume.value) / 100, this.musicMuted.checked);
+    };
+    this.musicMuted.addEventListener('change', music);
+    this.musicVolume.addEventListener('change', music);
+    this.musicVolume.addEventListener('input', () => this.showVolume());
   }
 
   private open(): void {
@@ -123,10 +133,12 @@ export class Menu {
     this.resetConfirm.hidden = true;
     this.prestigeConfirm.hidden = true;
     const settings = this.actions.settings();
-    this.muted.disabled = this.volume.disabled = !settings;
+    this.muted.disabled = this.volume.disabled = this.musicMuted.disabled = this.musicVolume.disabled = !settings;
     if (settings) {
       this.muted.checked = settings.muted;
       this.volume.value = String(Math.round(settings.volume * 100));
+      this.musicMuted.checked = settings.musicMuted;
+      this.musicVolume.value = String(Math.round(settings.musicVolume * 100));
     }
     this.showVolume();
     this.dialog.showModal();
@@ -173,6 +185,7 @@ export class Menu {
 
   private showVolume(): void {
     setText(byId('volume-text'), `${this.volume.value}%`);
+    setText(byId('music-volume-text'), `${this.musicVolume.value}%`);
   }
 
   private async copy(): Promise<void> {
