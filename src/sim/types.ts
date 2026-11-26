@@ -94,7 +94,7 @@ export interface State {
   layout: (TowerKind | null)[];
   owned: { autoUpgrade: boolean; autoCast: boolean };
   /** Switches for purchased automation. */
-  options: { autoUpgrade: boolean; autoCast: boolean };
+  options: { autoUpgrade: boolean; autoCast: boolean; keepLayout: boolean };
   /** A brand-new game's first wave waits until a tower stands, so reading the screen costs nothing. */
   holdForTower: boolean;
   map: MapId;
@@ -116,9 +116,12 @@ export interface State {
   /** Challenges in force this run, and those chosen for the next run. */
   challenges: ChallengeKind[];
   nextChallenges: ChallengeKind[];
+  /** Nothing moves while paused; commands still work. New games and new runs start paused. */
+  paused: boolean;
 }
 
-export type OptionName = 'autoAdvance' | 'autoUpgrade' | 'autoCast';
+/** keepLayout: a prestige keeps the Warden's slot and lets Auto-upgrade rebuild the towers (off by default). */
+export type OptionName = 'autoAdvance' | 'autoUpgrade' | 'autoCast' | 'keepLayout';
 
 export type Command =
   | { type: 'build'; slot: number; tower: TowerKind }
@@ -140,7 +143,10 @@ export type Command =
   | { type: 'toggleWall'; x: number; y: number }
   | { type: 'boost'; slot: number }
   | { type: 'rally' }
-  | { type: 'setChallenge'; challenge: ChallengeKind; on: boolean };
+  | { type: 'setChallenge'; challenge: ChallengeKind; on: boolean }
+  /** Gives up a challenge for the rest of this run, with its extra Cores. */
+  | { type: 'dropChallenge'; challenge: ChallengeKind }
+  | { type: 'setPause'; paused: boolean };
 
 export type CommandResult = { ok: true } | { ok: false; reason: string };
 

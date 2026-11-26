@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { fitView, toScreen } from '../../src/render/view';
 import { GUIDE_SLOTS } from '../../src/ui/guide-steps';
-import { SIZES, clickSlot, collectErrors, pageScrolls } from './helpers';
+import { clickSlot, collectErrors, pageScrolls, SIZES } from './helpers';
 
 /** Clicks the map where there is no slot, which clears the selection. */
 async function clickEmptyMap(page: Page): Promise<void> {
@@ -31,6 +31,13 @@ test('a new game waits for the first tower, and the guide leads to it', async ({
   await expect(page.locator('#foes')).toBeHidden();
   await page.locator('[data-tower=bolt]').click();
   await expect(page.locator('[data-tower=bolt]')).not.toHaveClass(/guide-target/);
+  // New games start paused; the guide points at Play.
+  await expect(page.locator('#guide-text')).toHaveText('Your tower is ready. Press Play (or Space) to start the game.');
+  await expect(page.locator('#pause')).toHaveClass(/guide-target/);
+  // Space toggles pause when no button has the focus (a focused button takes Space for itself).
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('Space');
+  await expect(page.locator('#pause')).toHaveAttribute('aria-pressed', 'false');
 
   // The wave runs now; the list counts down once the selection is cleared.
   await clickEmptyMap(page);

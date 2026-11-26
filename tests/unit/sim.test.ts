@@ -178,6 +178,8 @@ describe('determinism', () => {
 describe('a brand-new game', () => {
   it('holds wave 1 until the first tower is built', () => {
     const s = createNewGame(1);
+    expect(s.paused).toBe(true);
+    s.paused = false;
     const spawns = s.spawns.length;
     expect(run(s, 30 * 60)).toEqual([]);
     expect([s.waveTick, s.enemies.length, s.spawns.length, s.lives, s.gold.toNumber()]).toEqual([0, 0, spawns, 10, GOLD.start]);
@@ -190,6 +192,7 @@ describe('a brand-new game', () => {
 
   it('does not hold again after the tower is sold', () => {
     const s = createNewGame(1);
+    s.paused = false;
     step(s, [build(5)]);
     step(s, [{ type: 'sell', slot: 5 }]);
     run(s, 30);

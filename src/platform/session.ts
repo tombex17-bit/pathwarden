@@ -76,7 +76,8 @@ export class Session {
   }
 
   private pay(ms: number): Away | undefined {
-    if (ms <= 0) return undefined;
+    // A paused game earns nothing while away, as it earns nothing while open.
+    if (ms <= 0 || this.state.paused) return undefined;
     const seconds = ms / 1000;
     return { seconds, gold: payOffline(this.state, seconds) };
   }

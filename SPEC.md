@@ -1,6 +1,6 @@
 # SPEC: Pathwarden, a 2D tower defense idle game (versions 1 and 2)
 
-Status: reviewed and revised. All six version 1 milestones are built, and version 2 (sections 19, 21 and 22) is built. The game is named Pathwarden.
+Status: reviewed and revised. All six version 1 milestones are built, and version 2 (sections 19, 21, 22 and 23) is built. The game is named Pathwarden.
 
 Decisions marked **[A]** came from the interview. Those marked **[D]** are design defaults chosen here.
 
@@ -105,7 +105,7 @@ At level 25 the player picks one of two, for free. It stays until the tower is s
 - **Gold** resets on prestige. **Cores** are permanent.
 - Prestige requires `bestRun >= 100` **and** at least 10 waves cleared this run. It is always manual and asks for confirmation.
 - Cores gained: `floor(10 * 1.06^(bestRun - 100))`. The panel shows the amount beforehand.
-- Prestige resets gold, towers, specializations, `w`, `bestRun`, cooldowns and the idle-rate history. It keeps Cores, permanent upgrades, `bestEver`, ability unlocks and settings, and stores the layout (below).
+- Prestige resets gold, towers, specializations, `w`, `bestRun`, cooldowns and the idle-rate history. It keeps Cores, permanent upgrades, `bestEver`, ability unlocks and settings, and stores the layout (below). **Changed (section 23):** the layout is stored only if the player chose to keep it, and a new run starts paused.
 - Runs after the first start at `s = max(1, floor(0.5 * bestEver))` with gold `20 * N(s) * baseGold(s) * 1.3^G`.
 
 | Permanent upgrade | Cost in Cores | Effect |
@@ -117,7 +117,7 @@ At level 25 the player picks one of two, for free. It stays until the tower is s
 
 **Layout:** when prestige is confirmed, the game records the tower type in each slot. A player build or sale on a slot removes that slot's entry, so a sold tower is never rebuilt. An entry only applies while its slot is empty.
 
-**Auto-upgrade:** once per game second, if the first unfilled layout entry (lowest slot index) is affordable, build it. Otherwise buy the cheapest affordable tower level. Can be switched off.
+**Auto-upgrade:** once per game second, if the first unfilled layout entry (lowest slot index) is affordable, build it (only with a kept layout since section 23). Otherwise buy the cheapest affordable tower level. Can be switched off.
 
 **Auto-cast:** casts Meteor, Stasis and Smite at 2x their cooldown. It targets the point on the path covering the most enemies (Smite: the highest-HP enemy). It never casts Bounty Mark. Can be switched off.
 
@@ -351,7 +351,7 @@ Added after version 1, at the user's request: the playability items of section 1
 - It levels itself: half the gold of every kill becomes experience, and a level costs what a tower upgrade would. It cannot be upgraded, specialized, sold or merged.
 - It boosts towers within 2.6 cells (the next slot over on the first map) by 15%.
 - It can move to another empty slot, then must wait 10 game seconds before moving again.
-- It does not count toward build prices. At prestige it stays in its slot, back at level 1 with no experience.
+- It does not count toward build prices. At prestige it is removed, unless the player keeps the layout (section 23): then it stays in its slot, back at level 1 with no experience.
 
 ### Tapping enemies
 
@@ -465,3 +465,30 @@ Added at the user's request: background music and custom art. Both are made in c
 - `tests/unit/music.test.ts`: bars repeat exactly, every note stays inside its bar and in key, every bar has a chord and bass, drums play only when tense, and bars vary.
 - The section 12 browser checks still pass with the art: only the colors of sections 12 and 22 are drawn (the list is written out again in the test), reduced motion, 14 px text, 44 px targets, no page scroll, and 3x at 4x CPU slowdown (90 steps per second).
 - A browser test checks that music never starts before input, plays after it, stops creating sounds once muted, and keeps its volume and mute after a reload. Breaking the mute rule on purpose makes it fail.
+
+## 23. Pause, challenge badge and prestige layout
+
+Added at the user's request. Saves are version 8; older saves start unpaused and with the layout not kept.
+
+### Pause
+
+- A **Pause / Play** button starts the ability bar, in thumb reach; Space does the same unless a button or text field has the focus.
+- While paused no time passes: no movement, attacks, spawns, cooldowns or automation. Commands still work, so the player can build, upgrade, sell, merge, place walls and plan. A **Paused** badge shows in the top-left corner of the map.
+- New games and every new run after a prestige start paused. The guide's second step, after the first tower, now asks the player to press Play.
+- A paused game earns no offline gold, whether closed or in a hidden tab, just as it earns nothing while open.
+
+### Challenge badge and giving up
+
+- While challenges are in force, a gold **Challenge: ...** badge in the top-left corner of the map names them. It is a status label, small enough to stay clear of the first row of slots on every screen size.
+- The menu's Challenges section has a **Give up** button for each challenge in force. Giving up ends that challenge for the rest of the run, so newly spawned enemies are normal again, and drops its +50% Cores from this run's prestige. Challenges picked for the next run are unchanged.
+
+### Prestige layout
+
+- By default, a prestige now clears the towers, the Warden and the stored layout, so Auto-upgrade rebuilds nothing.
+- **Keep my tower layout** in the menu's Prestige section (off by default, saved with the game) brings back the earlier behavior: the layout is stored for Auto-upgrade to rebuild, and the Warden stays in its slot at level 1.
+
+### Checks
+
+- Unit tests: pause stops time but not commands, new games and new runs start paused, no offline gold while paused, giving up a challenge, prestige clearing the layout by default and keeping it when chosen.
+- Browser tests: Pause by button and Space, a paused game staying paused through a reload, a new game showing Play, the challenge badge and Give up through to the Cores shown, the keep-layout option saved, and the badges and Pause button fitting at the three screen sizes without covering slots.
+- The pacing bot presses Play at once and builds again after each prestige; with the cleared layout the section 9 targets still hold: first prestige at a median of 3.77 h, idle-only wave 100 at 7.0 h, and over 30 prestiges the best wave rose from 109 to 249 with runs of 1.2-5.0 h.

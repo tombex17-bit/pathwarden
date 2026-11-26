@@ -95,6 +95,8 @@ export function playRun(state: State, options: { typical: boolean; maxHours: num
   let lastRise = state.tick;
   let best = state.bestRun;
   const hours = (): number => (state.tick - start) / HOUR;
+  // New runs start paused; the bot presses Play at once. Prestige clears the layout (the default), so it builds again.
+  if (state.paused) step(state, [{ type: 'setPause', paused: false }]);
 
   while (state.tick - start < options.maxHours * HOUR) {
     const active = !options.typical || Math.floor((state.tick - start) / PHASE) % 2 === 0;

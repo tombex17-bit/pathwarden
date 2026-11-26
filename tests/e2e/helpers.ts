@@ -45,3 +45,10 @@ export async function seedSave(page: Page, text: string): Promise<void> {
     localStorage.setItem('tdi.save', save);
   }, text);
 }
+
+/** New games and new runs start paused; this presses Play. */
+export async function pressPlay(page: Page): Promise<void> {
+  const pause = page.locator('#pause');
+  await pause.waitFor();
+  if ((await pause.getAttribute('aria-pressed')) === 'true') await pause.click();
+}

@@ -6,7 +6,7 @@ import { BACKUP_KEY, MAIN_KEY } from '../../src/platform/save-store';
 import { createState } from '../../src/sim/sim';
 import type { State } from '../../src/sim/types';
 import { openPlainTab } from './plain-edge';
-import { SIZES, clickSlot, collectErrors, pageScrolls } from './helpers';
+import { clickSlot, collectErrors, pageScrolls, pressPlay, SIZES } from './helpers';
 
 const HOUR = 3600_000;
 
@@ -93,6 +93,7 @@ test('a reload keeps the game and continues the same wave', async ({ page }) => 
   await page.goto('./');
   await clickSlot(page, 0);
   await page.locator('[data-tower=bolt]').click();
+  await pressPlay(page);
   await page.locator('#speed').click();
   await expect(page.locator('#speed')).toHaveText('2x');
   await page.locator('#auto-advance').uncheck();

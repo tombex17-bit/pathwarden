@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fitView, toScreen } from '../../src/render/view';
-import { M6_SIZES, clickSlot, collectErrors, pageScrolls, seedSave } from './helpers';
+import { clickSlot, collectErrors, M6_SIZES, pageScrolls, pressPlay, seedSave } from './helpers';
 import { boss, crowded, early, prestigeReady, save } from './scenes';
 
 /** The tables of SPEC sections 12 and 22, written out again so the game's own palette file is checked against them. */
@@ -344,6 +344,7 @@ test('loads and plays with no network after the first visit', async ({ page, con
   await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   await clickSlot(page, 0);
   await page.locator('[data-tower=bolt]').click();
+  await pressPlay(page);
   await page.waitForTimeout(300);
   await context.setOffline(true);
   await page.reload();

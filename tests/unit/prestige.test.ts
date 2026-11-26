@@ -97,7 +97,7 @@ describe('prestige', () => {
     'wildSeed', 'walls', 'rallyTicks', 'rallyCooldown', 'nextChallenges'] as const;
   const RESET = [
     'gold', 'wave', 'waveTick', 'lives', 'restartTicks', 'bestRun', 'spawns', 'enemies', 'towers', 'cooldowns', 'zones',
-    'waveGold', 'history', 'cores', 'prestiges', 'clearedThisRun', 'layout', 'heroXp', 'heroMoveTicks', 'challenges',
+    'waveGold', 'history', 'cores', 'prestiges', 'clearedThisRun', 'layout', 'heroXp', 'heroMoveTicks', 'challenges', 'paused',
   ] as const;
 
   it('sorts every state field', () => {
@@ -107,29 +107,40 @@ describe('prestige', () => {
   it('keeps and resets exactly the listed items', () => {
     const s = ready();
     s.owned.autoCast = s.options.autoCast = true;
+    s.options.keepLayout = true;
     const before = structuredClone(s);
     const { events } = step(s, [PRESTIGE]);
     for (const k of KEPT) {
-      if (k === 'tick') expect(s.tick).toBe(before.tick + 1);
+      // The new run starts paused, so the prestige step passes no time.
+      if (k === 'tick') expect(s.tick).toBe(before.tick);
       else if (k === 'attempt') expect(s.attempt).toBe(before.attempt + 1);
       // Ids keep counting up; the new run's first enemy has already taken one.
-      else if (k === 'nextEnemyId') expect(s.nextEnemyId).toBe(before.nextEnemyId + 1);
+      else if (k === 'nextEnemyId') expect(s.nextEnemyId).toBe(before.nextEnemyId);
       else expect(s[k]).toEqual(before[k]);
     }
     expect({
       gold: s.gold.toNumber(), wave: s.wave, waveTick: s.waveTick, lives: s.lives, restartTicks: s.restartTicks,
       bestRun: s.bestRun, enemies: s.enemies.length, towers: s.towers, cooldowns: s.cooldowns, zones: s.zones,
       waveGold: s.waveGold.toNumber(), history: s.history, cores: s.cores.toNumber(), prestiges: s.prestiges,
-      clearedThisRun: s.clearedThisRun, layout: s.layout,
+      clearedThisRun: s.clearedThisRun, layout: s.layout, paused: s.paused,
     }).toEqual({
-      gold: expect.closeTo(startingGold(65, 1, 1).toNumber(), 6), wave: 65, waveTick: 1, lives: 10, restartTicks: 0,
-      bestRun: 0, enemies: 1, towers: [], cooldowns: { meteor: 0, stasis: 0, bounty: 0, smite: 0 }, zones: [],
+      gold: expect.closeTo(startingGold(65, 1, 1).toNumber(), 6), wave: 65, waveTick: 0, lives: 10, restartTicks: 0,
+      bestRun: 0, enemies: 0, towers: [], cooldowns: { meteor: 0, stasis: 0, bounty: 0, smite: 0 }, zones: [],
       waveGold: 0, history: [], cores: 3 + 12, prestiges: 1,
-      clearedThisRun: 0, layout: ['bolt', null, null, null, null, 'frost', null, null, null, null, null, null],
+      clearedThisRun: 0, layout: ['bolt', null, null, null, null, 'frost', null, null, null, null, null, null], paused: true,
     });
     expect(s.spawns.length).toBeGreaterThan(0);
     expect(idleRate(s).toNumber()).toBe(0);
     expect(events).toContainEqual({ type: 'prestige', cores: coresFor(104), wave: 65 });
+  });
+
+  it('by default clears the layout and the Warden, so nothing is rebuilt', () => {
+    const s = ready();
+    s.towers.push({ ...s.towers[0]!, slot: 9, kind: 'warden' });
+    step(s, [PRESTIGE]);
+    expect(s.layout.every((k) => k === null)).toBe(true);
+    expect(s.towers).toEqual([]);
+    expect(s.paused).toBe(true);
   });
 
   it('keeps ability unlocks, which come from the best wave ever', () => {
@@ -195,7 +206,8 @@ describe('layout and auto-upgrade', () => {
     addTower(s, 3, 'cannon');
     addTower(s, 0, 'bolt');
     s.cores = new Decimal(5);
-    step(s, [buy('autoUpgrade'), PRESTIGE]);
+    s.options.keepLayout = true;
+    step(s, [buy('autoUpgrade'), PRESTIGE, { type: 'setPause', paused: false }]);
     s.gold = new Decimal(1e6);
     return s;
   }

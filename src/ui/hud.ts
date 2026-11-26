@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import {
-  BUY_AMOUNTS, ENEMIES, HERO, MERGE, OVERDRIVE, RALLY, RANKS, SPEC_LEVEL, TOWERS, TOWER_KINDS,
+  BUY_AMOUNTS, CHALLENGES, ENEMIES, HERO, MERGE, OVERDRIVE, RALLY, RANKS, SPEC_LEVEL, TOWERS, TOWER_KINDS,
   type BuyAmount, type EnemyKind, type SpecChoice, type TowerKind,
 } from '../config/balance';
 import { MAPS, MAZE } from '../config/map';
@@ -75,6 +75,9 @@ export class Hud {
   private foesShown = '';
   private readonly callWave = byId<HTMLButtonElement>('call-wave');
   private readonly boost = byId<HTMLButtonElement>('boost');
+  private readonly pause = byId<HTMLButtonElement>('pause');
+  private readonly challengeBadge = byId('challenge-badge');
+  private paused = false;
   private readonly wallsEdit = byId<HTMLButtonElement>('walls-edit');
   /** Map clicks place and remove Maze walls while this is on. */
   editingWalls = false;
@@ -130,6 +133,7 @@ export class Hud {
       send({ type: 'setOption', option: 'autoAdvance', value: this.autoAdvance.checked });
     });
     this.callWave.addEventListener('click', () => send({ type: 'callWave' }));
+    this.pause.addEventListener('click', () => send({ type: 'setPause', paused: !this.paused }));
     this.boost.addEventListener('click', () => this.withSlot((slot) => {
       const hero = this.boost.dataset.rally === 'true';
       send(hero ? { type: 'rally' } : { type: 'boost', slot });
@@ -138,6 +142,12 @@ export class Hud {
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || document.querySelector('dialog[open]')) return;
       if (e.key === 'n' || e.key === 'N') send({ type: 'callWave' });
+      // Space pauses, unless a button or text field has the focus and would take it.
+      const target = e.target as HTMLElement | null;
+      if (e.key === ' ' && !(target && /^(BUTTON|INPUT|TEXTAREA)$/.test(target.tagName))) {
+        e.preventDefault();
+        send({ type: 'setPause', paused: !this.paused });
+      }
     });
   }
 
@@ -165,6 +175,12 @@ export class Hud {
     setText(this.best, String(state.bestEver));
     setText(this.cores, formatNumber(state.cores));
     this.banner.hidden = state.restartTicks === 0;
+    this.paused = state.paused;
+    this.pause.setAttribute('aria-pressed', String(state.paused));
+    setText(byId('pause-label'), state.paused ? 'Play' : 'Pause');
+    byId('paused-badge').hidden = !state.paused;
+    this.challengeBadge.hidden = state.challenges.length === 0;
+    if (state.challenges.length > 0) setText(this.challengeBadge, `Challenge: ${state.challenges.map((c) => CHALLENGES[c].name).join(', ')}`);
     this.autoAdvance.checked = state.autoAdvance;
 
     const tower = state.towers.find((t) => t.slot === this.selectedSlot);

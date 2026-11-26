@@ -14,7 +14,7 @@ export const GUIDE_LAST_WAVE = 3;
 /** Meteor is worth teaching once this many enemies are on the path. */
 export const GUIDE_METEOR_CROWD = 3;
 
-export type GuideTarget = 'slot' | 'bolt' | 'upgrade' | 'meteor';
+export type GuideTarget = 'slot' | 'bolt' | 'upgrade' | 'meteor' | 'play';
 export interface GuideStep { text: string; target?: GuideTarget; slot?: number }
 export interface GuideView { selectedSlot: number | undefined; aiming: AbilityKind | undefined }
 
@@ -47,6 +47,8 @@ export function guideStep(done: number, state: State, view: GuideView): GuideSte
     }
     return { text: 'Welcome! Tap the highlighted slot on the map to place your first tower there.', target: 'slot', slot: GUIDE_SLOTS[0] };
   }
+
+  if (state.paused) return { text: 'Your tower is ready. Press Play (or Space) to start the game.', target: 'play' };
 
   const cost = upgradeCost(tower.level);
   if (!has(GUIDE_STEPS.upgraded) && canAfford(state.gold, cost)) {

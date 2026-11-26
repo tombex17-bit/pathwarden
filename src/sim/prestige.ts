@@ -37,15 +37,20 @@ export function startingGold(wave: number, greed: number, prestiges: number): De
     .mul(Decimal.pow(GREED_MULT, greed));
 }
 
-/** Ends the run: pays Cores, records the layout and starts again further ahead. */
+/**
+ * Ends the run: pays Cores and starts again further ahead, paused. Towers and the Warden are cleared, unless the
+ * player chose to keep the layout: then the Warden keeps its slot and Auto-upgrade rebuilds the towers.
+ */
 export function prestige(state: State, startWave: () => void): CommandResult {
   const blocker = prestigeBlocker(state);
   if (blocker) return no(blocker);
   state.cores = state.cores.add(prestigeCores(state));
   state.challenges = [...state.nextChallenges];
-  state.layout = state.layout.map((_, i) => state.towers.find((t) => t.slot === i && !isHero(t))?.kind ?? null);
-  // The Warden stays in its slot but starts again at level 1.
-  const hero = heroOf(state);
+  const keep = state.options.keepLayout;
+  state.layout = state.layout.map((_, i) => (keep ? state.towers.find((t) => t.slot === i && !isHero(t))?.kind ?? null : null));
+  // A kept Warden stays in its slot but starts again at level 1.
+  const hero = keep ? heroOf(state) : undefined;
+  state.paused = true;
   state.prestiges++;
   state.wave = headStartWave(state.bestEver);
   state.gold = startingGold(state.wave, state.greed, state.prestiges);

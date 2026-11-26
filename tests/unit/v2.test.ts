@@ -1,15 +1,16 @@
 import Decimal from 'break_infinity.js';
 import { describe, expect, it } from 'vitest';
 import { HERO, MERGE, RANKS, TAP, TICKS_PER_SECOND } from '../../src/config/balance';
-import { GRID_H, GRID_W, MAPS, MAP_IDS, PATH_WIDTH, SLOT_COUNT, SLOT_RADIUS, type MapId } from '../../src/config/map';
+import { MAPS, MAP_IDS, type MapId } from '../../src/config/map';
 import { log10FormationDps } from '../../src/sim/abilities';
 import { buildCost, enemyGold } from '../../src/sim/economy';
-import { distanceToPath, layoutOf, type Layout } from '../../src/sim/path';
+import { layoutOf, type Layout } from '../../src/sim/path';
 import { canCallWave, createState, step } from '../../src/sim/sim';
 import { log10Damage, rankOf } from '../../src/sim/stats';
 import { heroOf } from '../../src/sim/towers';
 import type { Command, SimEvent, State } from '../../src/sim/types';
 import { addTower, emptyField, place, run } from './helpers';
+import { checkLayout } from './layout-check';
 
 const ok = { ok: true };
 const results = (s: State, ...commands: Command[]): unknown[] => step(s, commands).results;
@@ -17,26 +18,6 @@ const events = (s: State, ...commands: Command[]): SimEvent[] => step(s, command
 
 const layout = (map: MapId, wildSeed = 0, walls: number[] = []): Layout => layoutOf({ map, wildSeed, walls });
 const FIXED = MAP_IDS.filter((m) => MAPS[m].kind === 'fixed');
-
-/** A road across the grid along grid lines, and 12 slots clear of it, apart, inside the grid and in reach. */
-export function checkLayout(l: Layout, name: string, reach = true): void {
-  const { path, slots } = l;
-  expect(path[0]!.x, name).toBe(0);
-  expect(path[path.length - 1]!.x, name).toBe(GRID_W);
-  for (let i = 1; i < path.length; i++) expect(path[i]!.x === path[i - 1]!.x || path[i]!.y === path[i - 1]!.y, name).toBe(true);
-  expect(slots).toHaveLength(SLOT_COUNT);
-  for (const [i, s] of slots.entries()) {
-    expect(s.x - SLOT_RADIUS, `${name} slot ${i}`).toBeGreaterThanOrEqual(0);
-    expect(s.x + SLOT_RADIUS, `${name} slot ${i}`).toBeLessThanOrEqual(GRID_W);
-    expect(s.y - SLOT_RADIUS, `${name} slot ${i}`).toBeGreaterThanOrEqual(0);
-    expect(s.y + SLOT_RADIUS, `${name} slot ${i}`).toBeLessThanOrEqual(GRID_H);
-    const gap = distanceToPath(path, s);
-    expect(gap, `${name} slot ${i} clear of the path`).toBeGreaterThanOrEqual(PATH_WIDTH / 2 + SLOT_RADIUS);
-    // Every tower kind reaches the path from every slot (the shortest range is 2.4).
-    if (reach) expect(gap, `${name} slot ${i} in reach`).toBeLessThanOrEqual(2);
-    for (const [j, o] of slots.entries()) if (j > i) expect(Math.hypot(s.x - o.x, s.y - o.y), `${name} slots ${i}, ${j}`).toBeGreaterThan(1.2);
-  }
-}
 
 describe('maps', () => {
   it.each(FIXED)('%s is laid out well', (map) => checkLayout(layout(map), map));
@@ -148,8 +129,9 @@ describe('the Warden', () => {
     expect(all).toContainEqual({ type: 'heroLevel', level: 3 });
   });
 
-  it('stays in its slot through a prestige, back at level 1', () => {
+  it('with the layout kept, stays in its slot through a prestige, back at level 1', () => {
     const s = unlocked();
+    s.options.keepLayout = true;
     step(s, [{ type: 'placeHero', slot: 7 }]);
     heroOf(s)!.level = 80;
     s.heroXp = new Decimal(5);

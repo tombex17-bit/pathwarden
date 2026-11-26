@@ -41,6 +41,8 @@ export class Menu {
     autoUpgrade: byId<HTMLInputElement>('auto-upgrade'),
     autoCast: byId<HTMLInputElement>('auto-cast'),
   };
+  private readonly keepLayout = byId<HTMLInputElement>('keep-layout');
+  private dropShown = '';
 
   private readonly upgrades = PERMANENT_KINDS.map((kind) => {
     const el = button(() => this.send({ type: 'buyPermanent', upgrade: kind }));
@@ -88,6 +90,7 @@ export class Menu {
     for (const [option, el] of Object.entries(this.toggles)) {
       el.addEventListener('change', () => send({ type: 'setOption', option: option as 'autoUpgrade' | 'autoCast', value: el.checked }));
     }
+    this.keepLayout.addEventListener('change', () => send({ type: 'setOption', option: 'keepLayout', value: this.keepLayout.checked }));
     on('menu-open', () => this.open());
     on('blocker-menu', () => this.open());
     on('menu-close', () => this.dialog.close());
@@ -159,6 +162,18 @@ export class Menu {
       : `Switching to ${MAPS[state.nextMap].name} when the next wave starts.`);
     const active = state.challenges.map((c) => CHALLENGES[c].name);
     setText(byId('challenge-text'), `Picked challenges start with your next run; each adds ${CHALLENGE_CORES * 100}% Cores at its prestige. ${active.length ? `This run: ${active.join(', ')}.` : 'None this run.'}`);
+    if (document.activeElement !== this.keepLayout) this.keepLayout.checked = state.options.keepLayout;
+    // Active challenges can be given up for the rest of the run, if they turn out too hard.
+    const dropKey = state.challenges.join();
+    if (dropKey !== this.dropShown) {
+      this.dropShown = dropKey;
+      byId('challenge-drop').replaceChildren(...state.challenges.map((challenge) => {
+        const el = button(() => this.send({ type: 'dropChallenge', challenge }));
+        el.dataset.drop = challenge;
+        el.textContent = `Give up ${CHALLENGES[challenge].name} for this run (no extra Cores for it)`;
+        return el;
+      }));
+    }
     for (const { challenge, box } of this.challenges) {
       if (document.activeElement !== box) box.checked = state.nextChallenges.includes(challenge);
     }

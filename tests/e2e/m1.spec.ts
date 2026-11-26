@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createState } from '../../src/sim/sim';
-import { SIZES, clickSlot, collectErrors, pageScrolls, seedSave } from './helpers';
+import { clickSlot, collectErrors, pageScrolls, pressPlay, seedSave, SIZES } from './helpers';
 import { save } from './scenes';
 
 for (const { name, width, height } of SIZES) {
@@ -11,6 +11,7 @@ for (const { name, width, height } of SIZES) {
     await expect(page.locator('#wave')).toHaveText('1');
     await clickSlot(page, 0);
     await page.locator('[data-tower=bolt]').click();
+    await pressPlay(page);
     await expect(page.locator('#panel-title')).toHaveText('Bolt, level 1');
     await expect(page.locator('#shop')).toBeHidden();
     // 20 gold is left after building, so more means a kill paid out.
@@ -38,6 +39,7 @@ test('the next wave starts by itself', async ({ page }) => {
   await page.goto('./');
   await clickSlot(page, 0);
   await page.locator('[data-tower=bolt]').click();
+  await pressPlay(page);
   await expect(page.locator('#wave')).toHaveText('2', { timeout: 45_000 });
   await expect(page.locator('#best')).toHaveText('1');
   expect(errors).toEqual([]);

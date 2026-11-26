@@ -33,19 +33,20 @@ export function createState(seed: number, wave = 1): State {
     cooldowns: { meteor: 0, stasis: 0, bounty: 0, smite: 0 }, zones: [],
     waveGold: new Decimal(0), history: [],
     cores: new Decimal(0), prestiges: 0, clearedThisRun: 0, layout: Array<null>(SLOT_COUNT).fill(null),
-    owned: { autoUpgrade: false, autoCast: false }, options: { autoUpgrade: false, autoCast: false },
+    owned: { autoUpgrade: false, autoCast: false }, options: { autoUpgrade: false, autoCast: false, keepLayout: false },
     holdForTower: false,
     map: FIRST_MAP, nextMap: FIRST_MAP, heroXp: new Decimal(0), heroMoveTicks: 0, tapTicks: 0,
-    wildSeed: 0, walls: [], rallyTicks: 0, rallyCooldown: 0, challenges: [], nextChallenges: [],
+    wildSeed: 0, walls: [], rallyTicks: 0, rallyCooldown: 0, challenges: [], nextChallenges: [], paused: false,
   };
   startWave(state, []);
   return state;
 }
 
-/** A brand-new game: like `createState`, but wave 1 waits for the first tower. */
+/** A brand-new game: like `createState`, but paused, and wave 1 waits for the first tower. */
 export function createNewGame(seed: number): State {
   const state = createState(seed);
   state.holdForTower = true;
+  state.paused = true;
   return state;
 }
 
@@ -53,6 +54,8 @@ export function createNewGame(seed: number): State {
 export function step(state: State, commands: readonly Command[] = []): StepResult {
   const events: SimEvent[] = [];
   const results = commands.map((c) => apply(state, c, events));
+  // While paused, only the commands take effect: no time passes.
+  if (state.paused) return { events, results };
   state.tick++;
   tickCooldowns(state);
   if (state.heroMoveTicks > 0) state.heroMoveTicks--;
@@ -101,6 +104,7 @@ function apply(state: State, command: Command, events: SimEvent[]): CommandResul
   switch (command.type) {
     case 'setOption':
       if (command.option === 'autoAdvance') state.autoAdvance = command.value;
+      else if (command.option === 'keepLayout') state.options.keepLayout = command.value;
       else if (command.option === 'autoUpgrade' || command.option === 'autoCast') {
         if (!state.owned[command.option]) return no('Not bought yet');
         state.options[command.option] = command.value;
@@ -145,6 +149,13 @@ function apply(state: State, command: Command, events: SimEvent[]): CommandResul
       events.push({ type: 'rally' });
       return OK;
     }
+    case 'setPause':
+      state.paused = command.paused;
+      return OK;
+    case 'dropChallenge':
+      if (!state.challenges.includes(command.challenge)) return no('That challenge is not on this run');
+      state.challenges = state.challenges.filter((c) => c !== command.challenge);
+      return OK;
     case 'setChallenge': {
       if (!CHALLENGE_KINDS.includes(command.challenge)) return no('No such challenge');
       const others = state.nextChallenges.filter((c) => c !== command.challenge);

@@ -7,7 +7,7 @@ import { createState, refreshDamage } from '../sim/sim';
 import type { Enemy, State, Tower } from '../sim/types';
 import { DEFAULT_MUSIC_VOLUME, DEFAULT_VOLUME, GUIDE_DONE, SPEEDS, type Settings, type Speed } from './settings';
 
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 const EXPORT_PREFIX = 'TD1';
 const MAX_ITEMS = 500;
 
@@ -191,7 +191,8 @@ function readState(v: unknown): State {
   const owned = obj(r.owned);
   const options = obj(r.options);
   s.owned = { autoUpgrade: bool(owned.autoUpgrade), autoCast: bool(owned.autoCast) };
-  s.options = { autoUpgrade: bool(options.autoUpgrade), autoCast: bool(options.autoCast) };
+  s.options = { autoUpgrade: bool(options.autoUpgrade), autoCast: bool(options.autoCast), keepLayout: bool(options.keepLayout) };
+  s.paused = bool(r.paused);
   const cooldowns = obj(r.cooldowns);
   s.cooldowns = Object.fromEntries(ABILITY_KINDS.map((a) => [a, int(cooldowns[a], 0, 200_000)])) as Record<AbilityKind, number>;
   return s;
@@ -225,7 +226,7 @@ const MIGRATIONS: Record<number, (save: Raw) => Raw> = {
         clearedThisRun: state.bestRun,
         layout: Array<null>(SLOT_COUNT).fill(null),
         owned: { autoUpgrade: false, autoCast: false },
-        options: { autoUpgrade: false, autoCast: false },
+        options: { autoUpgrade: false, autoCast: false, keepLayout: false },
       },
     };
   },
@@ -247,6 +248,11 @@ const MIGRATIONS: Record<number, (save: Raw) => Raw> = {
         towers: Array.isArray(state.towers) ? state.towers.map((t) => ({ ...obj(t), tier: 1, kills: 0 })) : state.towers,
       },
     };
+  },
+  // Version 8 added pause and the choice to keep the tower layout at prestige; prestige now resets it by default.
+  7: (save) => {
+    const state = obj(save.state);
+    return { ...save, v: 8, state: { ...state, paused: false, options: { ...obj(state.options), keepLayout: false } } };
   },
   // Version 7 added music, on at the default volume.
   6: (save) => ({ ...save, v: 7, settings: { ...obj(save.settings), musicVolume: DEFAULT_MUSIC_VOLUME, musicMuted: false } }),

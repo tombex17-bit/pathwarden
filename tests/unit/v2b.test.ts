@@ -10,8 +10,9 @@ import type { Command, State } from '../../src/sim/types';
 import { log10EnemyHp } from '../../src/sim/waves';
 import { decode, encode } from '../../src/platform/save';
 import { defaultSettings } from '../../src/platform/settings';
+import { Session } from '../../src/platform/session';
 import { addTower, emptyField, place, run } from './helpers';
-import { checkLayout } from './v2.test';
+import { checkLayout } from './layout-check';
 
 const ok = { ok: true };
 const results = (s: State, ...commands: Command[]): unknown[] => step(s, commands).results;
@@ -227,5 +228,49 @@ describe('saving the new state', () => {
     expect(decode(JSON.stringify(raw))).toEqual({ ok: false, reason: 'corrupt' });
     raw.state.walls = [cellOf(2.5, 2.5)];
     expect(decode(JSON.stringify(raw))).toEqual({ ok: false, reason: 'corrupt' });
+  });
+});
+
+describe('pause', () => {
+  it('stops time while commands still work', () => {
+    const s = createState(1);
+    step(s, [{ type: 'setPause', paused: true }]);
+    const tick = s.tick;
+    const spawns = s.spawns.length;
+    expect(results(s, { type: 'build', slot: 0, tower: 'bolt' })).toEqual([ok]);
+    run(s, 300);
+    expect([s.tick, s.spawns.length, s.enemies.length, s.towers.length]).toEqual([tick, spawns, 0, 1]);
+    step(s, [{ type: 'setPause', paused: false }]);
+    expect(s.tick).toBe(tick + 1);
+  });
+
+  it('is on for brand-new games and new runs', () => {
+    const s = createState(1, 105);
+    Object.assign(s, { bestRun: 104, bestEver: 110, clearedThisRun: 10 });
+    step(s, [{ type: 'prestige' }]);
+    expect(s.paused).toBe(true);
+  });
+
+  it('earns no offline gold', () => {
+    const s = createState(1);
+    s.history = [{ gold: new Decimal(240), ticks: 720 }];
+    s.paused = true;
+    const gold = s.gold.toNumber();
+    const session = new Session(s, defaultSettings(), 1e12, 1e12 - 3_600_000);
+    expect(session.loadedAway).toBeUndefined();
+    expect(s.gold.toNumber()).toBe(gold);
+  });
+});
+
+describe('giving up a challenge', () => {
+  it('ends it for the rest of the run, with its extra Cores', () => {
+    const s = createState(1, 120);
+    s.bestRun = 120;
+    s.challenges = ['swift', 'armored'];
+    s.nextChallenges = ['swift'];
+    expect(results(s, { type: 'dropChallenge', challenge: 'swift' })).toEqual([ok]);
+    expect([s.challenges, s.nextChallenges]).toEqual([['armored'], ['swift']]);
+    expect(prestigeCores(s).toNumber()).toBe(coresFor(120).mul(1.5).floor().toNumber());
+    expect(results(s, { type: 'dropChallenge', challenge: 'lean' })).toEqual([{ ok: false, reason: 'That challenge is not on this run' }]);
   });
 });

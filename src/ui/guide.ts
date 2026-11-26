@@ -5,7 +5,7 @@ import { guideOver, guideProgress, guideStep, type GuideTarget, type GuideView }
 import { say } from './toast';
 
 const TARGETS: Readonly<Record<Exclude<GuideTarget, 'slot'>, string>> = {
-  bolt: '[data-tower=bolt]', upgrade: '#upgrade', meteor: '[data-ability=meteor]',
+  bolt: '[data-tower=bolt]', upgrade: '#upgrade', meteor: '[data-ability=meteor]', play: '#pause',
 };
 
 /** Walks a new player through building, upgrading and Meteor during the first waves. */

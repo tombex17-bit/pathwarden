@@ -22,6 +22,7 @@ describe('guide steps', () => {
 
   it('asks for an upgrade only once it is affordable, pointing at the tower and then the button', () => {
     const s = createNewGame(1);
+    s.paused = false;
     step(s, [{ type: 'build', slot: 5, tower: 'bolt' }]);
     s.gold = new Decimal(10);
     expect(guideStep(built, s, nothing)).toEqual({ text: 'Defeated enemies give gold. At 22 gold you can upgrade your tower.' });
@@ -98,4 +99,10 @@ describe('enemy list', () => {
     const s = emptyField();
     expect(foeRows(s)).toEqual([]);
   });
+});
+
+it('after the first tower, asks for Play while the game is paused', () => {
+  const s = createNewGame(1);
+  step(s, [{ type: 'build', slot: 5, tower: 'bolt' }]);
+  expect(guideStep(GUIDE_STEPS.built, s, nothing)).toEqual({ text: 'Your tower is ready. Press Play (or Space) to start the game.', target: 'play' });
 });

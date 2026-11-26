@@ -4,7 +4,7 @@ import { defaultSettings } from '../../src/platform/settings';
 import { encode } from '../../src/platform/save';
 import { createState, refreshDamage } from '../../src/sim/sim';
 import type { State, Tower } from '../../src/sim/types';
-import { SIZES, clickSlot, collectErrors, pageScrolls } from './helpers';
+import { SIZES, clickSlot, collectErrors, pageScrolls, pressPlay } from './helpers';
 
 /** Wave 104 cleared after 10 waves this run, with two towers standing. */
 function ready(): State {
@@ -41,9 +41,13 @@ test('prestige: shown beforehand, confirmed, then Cores buy upgrades and automat
   await page.locator('#prestige').click();
   await page.locator('#prestige-no').click();
   await expect(page.locator('#wave')).toHaveText('105');
+  // Keep the layout, so Auto-upgrade can rebuild it below (by default a prestige clears it).
+  await page.locator('#keep-layout').check();
   await page.locator('#prestige').click();
   await page.locator('#prestige-yes').click();
   await expect(page.locator('#menu')).not.toBeVisible();
+  // A new run starts paused.
+  await expect(page.locator('#paused-badge')).toBeVisible();
   await expect(page.locator('#toast')).toHaveText('Prestige: +12 Cores. New run from wave 55.');
   await expect(page.locator('#wave')).toHaveText('55');
   await expect(page.locator('#cores')).toHaveText('14');
@@ -61,8 +65,10 @@ test('prestige: shown beforehand, confirmed, then Cores buy upgrades and automat
   await expect(page.locator('[data-upgrade=power]')).toContainText('Power (level 1)');
   await expect(page.locator('#cores-text')).toHaveText('You have 4 Cores.');
   await expect(page.locator('[data-upgrade=autoCast]')).toBeDisabled();
+  await expect(page.locator('#keep-layout')).toBeChecked();
   await page.screenshot({ path: info.outputPath('menu-after.png') });
   await page.locator('#menu-close').click();
+  await pressPlay(page);
 
   // Auto-upgrade rebuilds the recorded towers in the same slots.
   await clickSlot(page, 4);

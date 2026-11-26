@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { SIZES, clickSlot, collectErrors, pageScrolls } from './helpers';
+import { clickSlot, collectErrors, pageScrolls, pressPlay, SIZES } from './helpers';
 
 test('buys, upgrades and sells with gold', async ({ page }) => {
   const errors = collectErrors(page);
@@ -8,6 +8,7 @@ test('buys, upgrades and sells with gold', async ({ page }) => {
   await expect(page.locator('[data-tower]')).toHaveCount(5);
   await expect(page.locator('[data-tower=bolt] .price')).toHaveText('50');
   await page.locator('[data-tower=bolt]').click();
+  await pressPlay(page);
   await expect(page.locator('#gold')).toHaveText('20');
   await expect(page.locator('#upgrade')).toHaveText('Upgrade +1 for 22');
   await expect(page.locator('#upgrade')).toBeDisabled();

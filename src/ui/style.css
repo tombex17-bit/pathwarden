@@ -51,6 +51,31 @@ body {
 #stage { grid-area: stage; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
 #map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; }
 
+#map-badges {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: calc(100% - 16px);
+  pointer-events: none;
+}
+#map-badges > * { pointer-events: auto; }
+#paused-badge, #challenge-badge {
+  margin: 0;
+  padding: 6px 12px;
+  border: 2px solid var(--text);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 14px;
+  font-weight: 600;
+}
+#challenge-badge { border-color: var(--gold); color: var(--gold); }
+#challenge-drop { display: grid; gap: 8px; }
+#pause[aria-pressed='true'] { border-color: var(--accent); }
+#pause[aria-pressed='true'] .name { color: var(--accent); }
+
 #banner {
   position: absolute;
   left: 50%;
@@ -134,7 +159,7 @@ textarea:focus-visible { outline: 2px solid var(--text); }
 #abilities {
   grid-area: abilities;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(56px, auto) repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 8px;
   background: var(--panel);

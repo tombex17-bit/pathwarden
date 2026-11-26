@@ -28,6 +28,8 @@ const GUIDED: Player['plan'] = [
 /** Plays from a brand-new game; returns lives lost in each wave, plus 100 for a lost wave. */
 function play(seed: number, player: Player, waves: number): number[] {
   const s: State = createNewGame(seed);
+  // The player presses Play right away; reading time is spent below.
+  s.paused = false;
   const lost: number[] = [0];
   let wave = 1;
   for (let tick = 0; s.wave <= waves && tick < 3600 * TICKS_PER_SECOND; tick++) {
