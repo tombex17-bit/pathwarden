@@ -9,7 +9,9 @@ import { registerOffline } from './platform/offline';
 import { claimTab } from './platform/tab-lock';
 import { Renderer } from './render/renderer';
 import { fitView, slotAt, toGrid, type View } from './render/view';
+import { layoutOf } from './sim/path';
 import { createNewGame } from './sim/sim';
+import { say } from './ui/toast';
 import type { Command } from './sim/types';
 import { AbilityBar } from './ui/ability-bar';
 import { byId, setText } from './ui/dom';
@@ -145,13 +147,18 @@ canvas.addEventListener('click', (e) => {
     abilities.castAt(toGrid(view, x, y));
     return;
   }
-  const slot = slotAt(view, x, y, session.state.map);
+  const point = toGrid(view, x, y);
+  if (hud.editingWalls) {
+    send({ type: 'toggleWall', ...point }, (result) => { if (!result.ok) say(result.reason); });
+    return;
+  }
+  const slot = slotAt(view, x, y, layoutOf(session.state).slots);
   if (slot !== undefined) {
     hud.selectedSlot = slot;
     return;
   }
   // Away from slots, a click hits the nearest enemy; a click on nothing clears the selection.
-  send({ type: 'tap', ...toGrid(view, x, y) }, (result) => {
+  send({ type: 'tap', ...point }, (result) => {
     if (!result.ok) hud.selectedSlot = undefined;
   });
 });
@@ -202,7 +209,7 @@ function frame(now: number): void {
       preview = { ability: abilities.aiming, at: toGrid(view, x, y) };
     }
     guide.update(session.state, { selectedSlot: hud.selectedSlot, aiming: abilities.aiming }, events);
-    renderer.draw(session.state, session.alpha, elapsed, hud.selectedSlot, preview, guide.slot);
+    renderer.draw(session.state, session.alpha, elapsed, hud.selectedSlot, preview, guide.slot, hud.editingWalls);
     canvas.style.cursor = abilities.aiming ? 'crosshair' : '';
     hud.update(session.state);
     abilities.update(session.state);

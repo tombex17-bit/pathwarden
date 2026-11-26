@@ -1,7 +1,9 @@
-import { BEAM_RAMP_PER_SECOND, BOUNTY_MULT, BRITTLE, CHAIN, SLOW_SECONDS, TICKS_PER_SECOND, type TowerStats } from '../config/balance';
+import {
+  BEAM_RAMP_PER_SECOND, BOUNTY_MULT, BRITTLE, CHAIN, OVERDRIVE, RALLY, SLOW_SECONDS, TICKS_PER_SECOND, type TowerStats,
+} from '../config/balance';
 import type { Point } from '../config/map';
 import { addSlow, removeDead } from './enemies';
-import { slotsOf } from './path';
+import { layoutOf } from './path';
 import { creditKill, gainHeroXp } from './towers';
 import { towerStats } from './stats';
 import type { Enemy, RampLock, SimEvent, State, Tower } from './types';
@@ -22,7 +24,8 @@ export function fireTowers(state: State, events: SimEvent[]): void {
       tower.locks = [];
       continue;
     }
-    tower.cooldown += TICKS_PER_SECOND / stats.hitsPerSecond;
+    const speed = tower.boostTicks > 0 ? OVERDRIVE.speedMult : 1;
+    tower.cooldown += TICKS_PER_SECOND / (stats.hitsPerSecond * speed);
     fire(state, tower, stats, targets, events);
   }
   removeDead(state);
@@ -32,7 +35,7 @@ function fire(state: State, tower: Tower, stats: TowerStats, targets: Enemy[], e
   if (stats.rampCap > 0) tower.locks = targets.map((t) => keepLock(tower, t, state.tick));
 
   targets.forEach((target, i) => {
-    const points: Point[] = [slotsOf(state.map)[tower.slot]!, { x: target.x, y: target.y }];
+    const points: Point[] = [layoutOf(state).slots[tower.slot]!, { x: target.x, y: target.y }];
     events.push({ type: 'shot', slot: tower.slot, kind: tower.kind, points, splash: stats.splash });
 
     if (stats.splash > 0) {
@@ -79,7 +82,8 @@ function nearestUnhit(state: State, chained: Enemy[]): Enemy | undefined {
 
 function hit(state: State, tower: Tower, stats: TowerStats, enemy: Enemy, mult: number, events: SimEvent[]): void {
   events.push({ type: 'hit', slot: tower.slot, kind: tower.kind, enemyId: enemy.id });
-  damage(state, enemy, tower.log10Damage, mult, stats.ignoresShield, events, tower);
+  const rally = state.rallyTicks > 0 ? RALLY.damageMult : 1;
+  damage(state, enemy, tower.log10Damage, mult * rally, stats.ignoresShield, events, tower);
   if (stats.slow > 0) addSlow(enemy, stats.slow, state.tick + SLOW_SECONDS * TICKS_PER_SECOND);
   if (stats.brittle) enemy.brittleUntil = state.tick + BRITTLE.seconds * TICKS_PER_SECOND;
 }
@@ -115,7 +119,7 @@ export function kill(state: State, enemy: Enemy, events: SimEvent[]): void {
 
 /** Living enemies in range, best first, at most as many as the tower can hit. */
 function findTargets(state: State, tower: Tower, stats: TowerStats): Enemy[] {
-  const at = slotsOf(state.map)[tower.slot]!;
+  const at = layoutOf(state).slots[tower.slot]!;
   const rangeSq = stats.range ** 2;
   const better = stats.targeting === 'highestHp' ? hasMoreHp : isFarther;
   const found: Enemy[] = [];

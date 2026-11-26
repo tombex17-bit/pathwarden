@@ -1,9 +1,9 @@
-import { PERMANENT, PERMANENT_KINDS } from '../config/balance';
+import { CHALLENGES, CHALLENGE_CORES, CHALLENGE_KINDS, PERMANENT, PERMANENT_KINDS } from '../config/balance';
 import { MAPS, MAP_IDS } from '../config/map';
 import type { Decoded, SaveData } from '../platform/save';
 import type { Settings } from '../platform/settings';
 import type { Send } from './ability-bar';
-import { coresFor, headStartWave, permanentCost, prestigeBlocker } from '../sim/prestige';
+import { headStartWave, permanentCost, prestigeBlocker, prestigeCores } from '../sim/prestige';
 import type { State } from '../sim/types';
 import { button, byId, create, setText } from './dom';
 import { formatNumber } from './format';
@@ -57,6 +57,17 @@ export class Menu {
     el.append(create('span', '', MAPS[map].name), create('small', '', MAPS[map].text), note);
     byId('maps').append(el);
     return { map, el, note };
+  });
+
+  private readonly challenges = CHALLENGE_KINDS.map((challenge) => {
+    const label = create('label', 'option');
+    const box = create('input');
+    box.type = 'checkbox';
+    box.dataset.challenge = challenge;
+    box.addEventListener('change', () => this.send({ type: 'setChallenge', challenge, on: box.checked }));
+    label.append(box, ` ${CHALLENGES[challenge].name}: ${CHALLENGES[challenge].text}`);
+    byId('challenges').append(label);
+    return { challenge, box };
   });
 
   get isOpen(): boolean {
@@ -129,11 +140,16 @@ export class Menu {
     if (blocker) this.prestigeConfirm.hidden = true;
     setText(byId('prestige-text'), blocker
       ? `${blocker}. Best wave this run: ${state.bestRun}. Best ever: ${state.bestEver}.`
-      : `Prestige now for ${formatNumber(coresFor(state.bestRun))} Cores and start again from wave ${headStartWave(state.bestEver)}. Best wave this run: ${state.bestRun}.`);
+      : `Prestige now for ${formatNumber(prestigeCores(state))} Cores and start again from wave ${headStartWave(state.bestEver)}. Best wave this run: ${state.bestRun}.`);
     setText(byId('cores-text'), `You have ${formatNumber(state.cores)} Cores.`);
     setText(byId('map-text'), state.nextMap === state.map
       ? `Playing on ${MAPS[state.map].name}. A new map starts with the next wave; towers keep their slot numbers.`
       : `Switching to ${MAPS[state.nextMap].name} when the next wave starts.`);
+    const active = state.challenges.map((c) => CHALLENGES[c].name);
+    setText(byId('challenge-text'), `Picked challenges start with your next run; each adds ${CHALLENGE_CORES * 100}% Cores at its prestige. ${active.length ? `This run: ${active.join(', ')}.` : 'None this run.'}`);
+    for (const { challenge, box } of this.challenges) {
+      if (document.activeElement !== box) box.checked = state.nextChallenges.includes(challenge);
+    }
     for (const { map, el, note } of this.maps) {
       const locked = state.bestEver < MAPS[map].unlockWave;
       el.disabled = locked;

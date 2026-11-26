@@ -1,5 +1,5 @@
 import Decimal from 'break_infinity.js';
-import { ABILITIES, AUTO_CAST_ABILITIES, GOLD, GREED_MULT, PERMANENT, PRESTIGE, TICKS_PER_SECOND, type PermanentKind } from '../config/balance';
+import { ABILITIES, AUTO_CAST_ABILITIES, CHALLENGE_CORES, GOLD, GREED_MULT, PERMANENT, PRESTIGE, TICKS_PER_SECOND, type PermanentKind } from '../config/balance';
 import { bestTarget, cast, isUnlocked } from './abilities';
 import { buildCost, canAfford, upgradeCost } from './economy';
 import { builtTowers, heroOf, isHero, newTower, refreshAll } from './towers';
@@ -11,6 +11,11 @@ const no = (reason: string): CommandResult => ({ ok: false, reason });
 /** Cores a prestige would give now. */
 export function coresFor(bestRun: number): Decimal {
   return Decimal.pow(PRESTIGE.coreGrowth, bestRun - PRESTIGE.minWave).mul(PRESTIGE.coreBase).floor();
+}
+
+/** Cores a prestige would give now, with +50% for each challenge in force this run. */
+export function prestigeCores(state: State): Decimal {
+  return coresFor(state.bestRun).mul(1 + CHALLENGE_CORES * state.challenges.length).floor();
 }
 
 export function prestigeBlocker(state: State): string | undefined {
@@ -36,7 +41,8 @@ export function startingGold(wave: number, greed: number, prestiges: number): De
 export function prestige(state: State, startWave: () => void): CommandResult {
   const blocker = prestigeBlocker(state);
   if (blocker) return no(blocker);
-  state.cores = state.cores.add(coresFor(state.bestRun));
+  state.cores = state.cores.add(prestigeCores(state));
+  state.challenges = [...state.nextChallenges];
   state.layout = state.layout.map((_, i) => state.towers.find((t) => t.slot === i && !isHero(t))?.kind ?? null);
   // The Warden stays in its slot but starts again at level 1.
   const hero = heroOf(state);

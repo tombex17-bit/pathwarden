@@ -1,5 +1,5 @@
 import type Decimal from 'break_infinity.js';
-import type { AbilityKind, BuyAmount, EnemyKind, PermanentKind, SpecChoice, TowerKind } from '../config/balance';
+import type { AbilityKind, BuyAmount, ChallengeKind, EnemyKind, PermanentKind, SpecChoice, TowerKind } from '../config/balance';
 import type { MapId, Point } from '../config/map';
 
 export interface Slow { amount: number; untilTick: number }
@@ -45,6 +45,9 @@ export interface Tower {
   tier: number;
   /** Enemies this tower finished off; they set its rank. */
   kills: number;
+  /** Steps of Overdrive left, then steps until it can be used again. */
+  boostTicks: number;
+  boostCooldown: number;
 }
 
 export interface Zone { kind: 'stasis' | 'bounty'; x: number; y: number; untilTick: number }
@@ -103,6 +106,16 @@ export interface State {
   heroMoveTicks: number;
   /** Steps until the next tap lands. */
   tapTicks: number;
+  /** Seed of the generated road on the Wilds. */
+  wildSeed: number;
+  /** Maze cells holding a wall, ascending. */
+  walls: number[];
+  /** Steps of the Warden's Rally left, and until it can be used again. */
+  rallyTicks: number;
+  rallyCooldown: number;
+  /** Challenges in force this run, and those chosen for the next run. */
+  challenges: ChallengeKind[];
+  nextChallenges: ChallengeKind[];
 }
 
 export type OptionName = 'autoAdvance' | 'autoUpgrade' | 'autoCast';
@@ -122,7 +135,12 @@ export type Command =
   | { type: 'tap'; x: number; y: number }
   | { type: 'callWave' }
   /** Merges the tower in `from` into the one in `slot`. */
-  | { type: 'merge'; slot: number; from: number };
+  | { type: 'merge'; slot: number; from: number }
+  /** Places or removes a Maze wall in the cell at this point. */
+  | { type: 'toggleWall'; x: number; y: number }
+  | { type: 'boost'; slot: number }
+  | { type: 'rally' }
+  | { type: 'setChallenge'; challenge: ChallengeKind; on: boolean };
 
 export type CommandResult = { ok: true } | { ok: false; reason: string };
 
@@ -141,6 +159,8 @@ export type SimEvent =
   | { type: 'rankUp'; slot: number; kind: TowerKind; rank: number }
   | { type: 'heroLevel'; level: number }
   | { type: 'merge'; slot: number; kind: TowerKind; tier: number }
-  | { type: 'mapChange'; map: MapId };
+  | { type: 'mapChange'; map: MapId }
+  | { type: 'boost'; slot: number }
+  | { type: 'rally' };
 
 export interface StepResult { events: SimEvent[]; results: CommandResult[] }

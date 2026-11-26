@@ -97,3 +97,30 @@ export function crossroads(): State {
   for (let i = 0; i < seconds(6); i++) step(s);
   return s;
 }
+
+/** The Maze between waves, with a few walls and towers. */
+export function mazeScene(): State {
+  const s = createState(9, 90);
+  s.bestRun = s.bestEver = 95;
+  s.map = s.nextMap = 'maze';
+  s.walls = [3 * 16 + 4, 4 * 16 + 4, 4 * 16 + 9, 5 * 16 + 4];
+  s.spawns = [];
+  s.waveTick = 100;
+  s.gold = new Decimal(1e8);
+  addTower(s, 0, 'cannon', { level: 60 });
+  addTower(s, 6, 'bolt', { level: 60 });
+  addTower(s, 10, 'frost', { level: 55 });
+  return s;
+}
+
+/** The Wilds on a fixed seed, mid-wave, with towers along the road. */
+export function wildsScene(): State {
+  const s = createState(10, 70);
+  s.bestRun = s.bestEver = 75;
+  s.map = s.nextMap = 'wilds';
+  s.wildSeed = 4242;
+  s.gold = new Decimal(1e7);
+  for (const [slot, kind] of [[0, 'bolt'], [3, 'cannon'], [5, 'tesla'], [8, 'beam']] as const) addTower(s, slot, kind, { level: 50 });
+  for (let i = 0; i < seconds(5); i++) step(s);
+  return s;
+}

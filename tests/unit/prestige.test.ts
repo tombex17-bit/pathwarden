@@ -93,10 +93,11 @@ describe('prestige conditions', () => {
 
 describe('prestige', () => {
   // Every state field, sorted into what a prestige keeps and what it resets.
-  const KEPT = ['seed', 'tick', 'power', 'greed', 'attempt', 'bestEver', 'autoAdvance', 'nextEnemyId', 'kills', 'owned', 'options', 'holdForTower', 'map', 'nextMap', 'tapTicks'] as const;
+  const KEPT = ['seed', 'tick', 'power', 'greed', 'attempt', 'bestEver', 'autoAdvance', 'nextEnemyId', 'kills', 'owned', 'options', 'holdForTower', 'map', 'nextMap', 'tapTicks',
+    'wildSeed', 'walls', 'rallyTicks', 'rallyCooldown', 'nextChallenges'] as const;
   const RESET = [
     'gold', 'wave', 'waveTick', 'lives', 'restartTicks', 'bestRun', 'spawns', 'enemies', 'towers', 'cooldowns', 'zones',
-    'waveGold', 'history', 'cores', 'prestiges', 'clearedThisRun', 'layout', 'heroXp', 'heroMoveTicks',
+    'waveGold', 'history', 'cores', 'prestiges', 'clearedThisRun', 'layout', 'heroXp', 'heroMoveTicks', 'challenges',
   ] as const;
 
   it('sorts every state field', () => {

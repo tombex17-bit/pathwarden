@@ -1,12 +1,16 @@
 import Decimal from 'break_infinity.js';
-import { GOLD, HERO, MERGE, SPEC_LEVEL, TAP, TICKS_PER_SECOND, TOWER_KINDS, WAVE, type TowerKind } from '../config/balance';
-import { FIRST_MAP, MAPS, MAP_IDS, SLOT_COUNT } from '../config/map';
+import {
+  CHALLENGE_KINDS, GOLD, HERO, MERGE, OVERDRIVE, RALLY, SPEC_LEVEL, TAP, TICKS_PER_SECOND, TOWER_KINDS, WAVE, type TowerKind,
+} from '../config/balance';
+import { FIRST_MAP, GRID_H, GRID_W, MAPS, MAP_IDS, MAZE, SLOT_COUNT } from '../config/map';
 import { applyZones, cast, log10FormationDps, tickCooldowns } from './abilities';
 import { damage, distSq, fireTowers } from './combat';
 import { buildCost, levelsFor, pay, sellValue, upgradeCost } from './economy';
 import { createEnemy, moveEnemies } from './enemies';
 import { recordWave } from './idle';
-import { autoCast, autoUpgrade, buyPermanent, coresFor, prestige } from './prestige';
+import { cellOf, isOpenOnly, mazeRoute } from './path';
+import { autoCast, autoUpgrade, buyPermanent, prestige, prestigeCores } from './prestige';
+import { createRng } from './rng';
 import { HERO_MOVE_TICKS, builtTowers, heroOf, isHero, newTower, refreshAll, refreshDamage } from './towers';
 import type { Command, CommandResult, Enemy, SimEvent, State, StepResult } from './types';
 import { buildSpawns } from './waves';
@@ -32,6 +36,7 @@ export function createState(seed: number, wave = 1): State {
     owned: { autoUpgrade: false, autoCast: false }, options: { autoUpgrade: false, autoCast: false },
     holdForTower: false,
     map: FIRST_MAP, nextMap: FIRST_MAP, heroXp: new Decimal(0), heroMoveTicks: 0, tapTicks: 0,
+    wildSeed: 0, walls: [], rallyTicks: 0, rallyCooldown: 0, challenges: [], nextChallenges: [],
   };
   startWave(state, []);
   return state;
@@ -52,6 +57,7 @@ export function step(state: State, commands: readonly Command[] = []): StepResul
   tickCooldowns(state);
   if (state.heroMoveTicks > 0) state.heroMoveTicks--;
   if (state.tapTicks > 0) state.tapTicks--;
+  tickBoosts(state);
   autoUpgrade(
     state,
     (slot) => build(state, slot, state.layout[slot]!),
@@ -101,8 +107,12 @@ function apply(state: State, command: Command, events: SimEvent[]): CommandResul
       } else return no('No such option');
       return OK;
     case 'prestige': {
-      const cores = coresFor(state.bestRun);
-      const result = prestige(state, () => startWave(state, events));
+      const cores = prestigeCores(state);
+      const result = prestige(state, () => {
+        // A new run on the Wilds gets a new road.
+        if (state.map === 'wilds') state.wildSeed = newWildSeed(state);
+        startWave(state, events);
+      });
       if (result.ok) events.push({ type: 'prestige', cores, wave: state.wave });
       return result;
     }
@@ -126,6 +136,21 @@ function apply(state: State, command: Command, events: SimEvent[]): CommandResul
       if (!canCallWave(state)) return no('The wave is still running');
       clearWave(state, events);
       return OK;
+    case 'toggleWall':
+      return toggleWall(state, command);
+    case 'rally': {
+      if (!heroOf(state)) return no('Place the Warden first');
+      if (state.rallyTicks > 0 || state.rallyCooldown > 0) return no('Rally is not ready');
+      state.rallyTicks = RALLY.seconds * TICKS_PER_SECOND;
+      events.push({ type: 'rally' });
+      return OK;
+    }
+    case 'setChallenge': {
+      if (!CHALLENGE_KINDS.includes(command.challenge)) return no('No such challenge');
+      const others = state.nextChallenges.filter((c) => c !== command.challenge);
+      state.nextChallenges = command.on ? CHALLENGE_KINDS.filter((c) => c === command.challenge || others.includes(c)) : others;
+      return OK;
+    }
   }
 
   if (!Number.isInteger(command.slot) || command.slot < 0 || command.slot >= SLOT_COUNT) return no('No such slot');
@@ -142,6 +167,12 @@ function apply(state: State, command: Command, events: SimEvent[]): CommandResul
   if (command.type === 'placeHero') return placeHero(state, command.slot, tower);
 
   if (!tower) return no('Slot is empty');
+  if (command.type === 'boost') {
+    if (tower.boostTicks > 0 || tower.boostCooldown > 0) return no('Overdrive is not ready');
+    tower.boostTicks = OVERDRIVE.seconds * TICKS_PER_SECOND;
+    events.push({ type: 'boost', slot: tower.slot });
+    return OK;
+  }
   if (isHero(tower)) return no('The Warden levels up by itself and cannot be sold');
   switch (command.type) {
     case 'upgrade': {
@@ -168,6 +199,42 @@ function apply(state: State, command: Command, events: SimEvent[]): CommandResul
     case 'merge':
       return merge(state, tower, command.from, events);
   }
+}
+
+/** Overdrive and Rally run down, then cool down. */
+function tickBoosts(state: State): void {
+  for (const t of state.towers) {
+    if (t.boostTicks > 0) {
+      if (--t.boostTicks === 0) t.boostCooldown = OVERDRIVE.cooldownSeconds * TICKS_PER_SECOND;
+    } else if (t.boostCooldown > 0) t.boostCooldown--;
+  }
+  if (state.rallyTicks > 0) {
+    if (--state.rallyTicks === 0) state.rallyCooldown = RALLY.cooldownSeconds * TICKS_PER_SECOND;
+  } else if (state.rallyCooldown > 0) state.rallyCooldown--;
+}
+
+const newWildSeed = (state: State): number => Math.floor(createRng(state.seed, state.attempt, state.prestiges, state.tick)() * 2 ** 31);
+
+/** Walls may change while the Maze's road is empty, or any time while the Maze is only planned. */
+export function canEditWalls(state: State): boolean {
+  if (state.map !== 'maze') return state.nextMap === 'maze';
+  return state.enemies.length === 0 && (state.spawns.length === 0 || state.restartTicks > 0);
+}
+
+function toggleWall(state: State, at: { x: number; y: number }): CommandResult {
+  if (!(at.x >= 0 && at.x < GRID_W && at.y >= 0 && at.y < GRID_H)) return no('Outside the field');
+  if (!canEditWalls(state)) return no('Walls change only while the road is empty');
+  const cell = cellOf(at.x, at.y);
+  if (isOpenOnly(cell)) return no('That square must stay open');
+  if (state.walls.includes(cell)) {
+    state.walls = state.walls.filter((c) => c !== cell);
+    return OK;
+  }
+  if (state.walls.length >= MAZE.maxWalls) return no(`At most ${MAZE.maxWalls} walls`);
+  const walls = [...state.walls, cell].sort((a, b) => a - b);
+  if (!mazeRoute(walls)) return no('Enemies need a way through');
+  state.walls = walls;
+  return OK;
 }
 
 function build(state: State, slot: number, kind: TowerKind): CommandResult {
@@ -242,6 +309,7 @@ function tap(state: State, at: { x: number; y: number }, events: SimEvent[]): Co
 
 function startWave(state: State, events: SimEvent[]): void {
   if (state.nextMap !== state.map) {
+    if (state.nextMap === 'wilds') state.wildSeed = newWildSeed(state);
     state.map = state.nextMap;
     state.zones = [];
     // The Warden's reach depends on where slots are.

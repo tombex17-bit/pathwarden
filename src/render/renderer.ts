@@ -1,7 +1,7 @@
 import { ABILITIES, HERO, type AbilityKind, type EnemyKind, type TowerKind } from '../config/balance';
-import { GRID_H, GRID_W, MAPS, PATH_WIDTH, SLOT_RADIUS, type MapId, type Point } from '../config/map';
+import { GRID_H, GRID_W, PATH_WIDTH, SLOT_RADIUS, type Point } from '../config/map';
 import { currentSlow } from '../sim/enemies';
-import { pointAt, slotsOf } from '../sim/path';
+import { cellCenter, layoutOf, pointAt, type Layout } from '../sim/path';
 import { rankOf } from '../sim/stats';
 import { towerStats } from '../sim/stats';
 import type { SimEvent, State } from '../sim/types';
@@ -63,6 +63,7 @@ export class Renderer {
 
   draw(
     state: State, alpha: number, frameMs: number, selectedSlot: number | undefined, preview?: Preview, guideSlot?: number,
+    editingWalls = false,
   ): void {
     this.resize();
     const { ctx, view } = this;
@@ -82,10 +83,13 @@ export class Renderer {
     ctx.clip();
     const px = 1 / view.scale;
 
-    this.drawPath(state.map);
+    const layout = layoutOf(state);
+    if (editingWalls) this.drawGrid(px);
+    this.drawPath(layout);
+    this.drawWalls(state, px);
     this.drawZones(state, px);
     this.drawSlots(state, selectedSlot, px);
-    if (guideSlot !== undefined) this.drawGuide(state.map, guideSlot, px);
+    if (guideSlot !== undefined) this.drawGuide(layout, guideSlot, px);
     this.drawEnemies(state, alpha, px);
     this.drawEffects(px);
     if (preview) this.drawRing(preview.ability, preview.at, px);
@@ -104,13 +108,46 @@ export class Renderer {
     this.view = fitView(canvas.clientWidth, canvas.clientHeight);
   }
 
-  private drawPath(map: MapId): void {
+  /** Faint cell lines while the player places Maze walls. */
+  private drawGrid(px: number): void {
+    const { ctx } = this;
+    ctx.strokeStyle = COLORS.path;
+    ctx.lineWidth = px;
+    ctx.beginPath();
+    for (let x = 1; x < GRID_W; x++) {
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, GRID_H);
+    }
+    for (let y = 1; y < GRID_H; y++) {
+      ctx.moveTo(0, y);
+      ctx.lineTo(GRID_W, y);
+    }
+    ctx.stroke();
+  }
+
+  /** Maze walls: panel squares with a muted outline. */
+  private drawWalls(state: State, px: number): void {
+    if (state.walls.length === 0 || (state.map !== 'maze' && state.nextMap !== 'maze')) return;
+    const { ctx } = this;
+    ctx.lineWidth = 2 * px;
+    ctx.fillStyle = COLORS.panel;
+    ctx.strokeStyle = COLORS.muted;
+    for (const cell of state.walls) {
+      const c = cellCenter(cell);
+      ctx.beginPath();
+      ctx.rect(c.x - 0.42, c.y - 0.42, 0.84, 0.84);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  private drawPath(layout: Layout): void {
     const { ctx } = this;
     ctx.strokeStyle = COLORS.path;
     ctx.lineWidth = PATH_WIDTH;
     ctx.lineJoin = 'miter';
     ctx.beginPath();
-    for (const p of MAPS[map].path) ctx.lineTo(p.x, p.y);
+    for (const p of layout.path) ctx.lineTo(p.x, p.y);
     ctx.stroke();
   }
 
@@ -138,7 +175,7 @@ export class Renderer {
   private drawSlots(state: State, selected: number | undefined, px: number): void {
     const { ctx } = this;
     ctx.lineWidth = 2 * px;
-    const slots = slotsOf(state.map);
+    const { slots } = layoutOf(state);
     slots.forEach((slot, i) => {
       const tower = state.towers.find((t) => t.slot === i);
       ctx.fillStyle = COLORS.panel;
@@ -155,6 +192,13 @@ export class Renderer {
         for (let t = 1; t < tower.tier; t++) {
           ctx.beginPath();
           ctx.arc(slot.x, slot.y, SLOT_RADIUS + t * 5 * px, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        // Overdrive and Rally show as a gold ring while they last.
+        if (tower.boostTicks > 0 || (state.rallyTicks > 0 && tower.kind === 'warden')) {
+          ctx.strokeStyle = COLORS.gold;
+          ctx.beginPath();
+          ctx.arc(slot.x, slot.y, SLOT_RADIUS + tower.tier * 5 * px, 0, Math.PI * 2);
           ctx.stroke();
         }
         const rank = rankOf(tower.kills);
@@ -192,9 +236,9 @@ export class Renderer {
   }
 
   /** A ring around the slot the guide points at. */
-  private drawGuide(map: MapId, slot: number, px: number): void {
+  private drawGuide(layout: Layout, slot: number, px: number): void {
     const { ctx } = this;
-    const at = slotsOf(map)[slot]!;
+    const at = layout.slots[slot]!;
     ctx.strokeStyle = COLORS.gold;
     ctx.lineWidth = 2 * px;
     ctx.beginPath();
@@ -207,7 +251,7 @@ export class Renderer {
     const flashing = new Set(this.effects.flatMap((fx) => (fx.type === 'flash' ? [fx.enemyId] : [])));
     ctx.lineWidth = 2 * px;
     for (const e of state.enemies) {
-      const at = pointAt(state.map, e.prevDist + (e.dist - e.prevDist) * alpha);
+      const at = pointAt(layoutOf(state), e.prevDist + (e.dist - e.prevDist) * alpha);
       const radius = ENEMY_RADIUS[e.kind];
       ctx.fillStyle = flashing.has(e.id) ? COLORS.text : e.kind === 'boss' ? COLORS.boss : COLORS.enemy;
       traceEnemy(ctx, e.kind, at);

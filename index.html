@@ -41,6 +41,10 @@
           <button id="guide-skip" type="button">Skip guide</button>
         </div>
         <button id="call-wave" type="button" class="primary" hidden></button>
+        <div id="walls" hidden>
+          <button id="walls-edit" type="button" aria-pressed="false">Place walls</button>
+          <p id="walls-text"></p>
+        </div>
         <section id="foes" aria-labelledby="foes-title">
           <h3 id="foes-title"></h3>
           <div id="foe-list"></div>
@@ -50,6 +54,7 @@
         <div id="shop" hidden></div>
         <div id="tower" hidden>
           <p id="tower-extra"></p>
+          <button id="boost" type="button"></button>
           <div id="specs" hidden></div>
           <div id="amounts" role="group" aria-label="Levels to buy"></div>
           <button id="upgrade" type="button" class="primary"></button>
@@ -91,6 +96,11 @@
         <h3>Map</h3>
         <p id="map-text"></p>
         <div id="maps"></div>
+      </section>
+      <section>
+        <h3>Challenges</h3>
+        <p id="challenge-text"></p>
+        <div id="challenges"></div>
       </section>
       <section>
         <h3>Sound</h3>

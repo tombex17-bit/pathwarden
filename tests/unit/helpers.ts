@@ -32,7 +32,7 @@ export function addTower(
 ): Tower {
   const t: Tower = {
     slot, kind, level: options.level ?? 1, spec: options.spec ?? null, cooldown: 0, log10Damage: 0,
-    locks: [], buildPaid: new Decimal(50), upgradesPaid: new Decimal(0), tier: 1, kills: 0,
+    locks: [], buildPaid: new Decimal(50), upgradesPaid: new Decimal(0), tier: 1, kills: 0, boostTicks: 0, boostCooldown: 0,
   };
   refreshDamage(state, t);
   if (options.weak) t.log10Damage = -99;

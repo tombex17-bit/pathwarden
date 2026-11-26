@@ -1,13 +1,13 @@
 import Decimal from 'break_infinity.js';
 import {
-  BUY_AMOUNTS, ENEMIES, HERO, MERGE, RANKS, SPEC_LEVEL, TOWERS, TOWER_KINDS,
+  BUY_AMOUNTS, ENEMIES, HERO, MERGE, OVERDRIVE, RALLY, RANKS, SPEC_LEVEL, TOWERS, TOWER_KINDS,
   type BuyAmount, type EnemyKind, type SpecChoice, type TowerKind,
 } from '../config/balance';
-import { MAPS } from '../config/map';
+import { MAPS, MAZE } from '../config/map';
 import { COLORS } from '../render/palette';
 import { fillTower, traceEnemy } from '../render/shapes';
 import { buildCost, canAfford, levelsFor, sellValue, upgradeCost } from '../sim/economy';
-import { canCallWave } from '../sim/sim';
+import { canCallWave, canEditWalls } from '../sim/sim';
 import { rankOf } from '../sim/stats';
 import { builtTowers, heroOf, isHero } from '../sim/towers';
 import { towerStats } from '../sim/stats';
@@ -78,6 +78,10 @@ export class Hud {
   private readonly foes = byId('foes');
   private foesShown = '';
   private readonly callWave = byId<HTMLButtonElement>('call-wave');
+  private readonly boost = byId<HTMLButtonElement>('boost');
+  private readonly wallsEdit = byId<HTMLButtonElement>('walls-edit');
+  /** Map clicks place and remove Maze walls while this is on. */
+  editingWalls = false;
   private readonly extra = byId('tower-extra');
   private readonly merge = byId('merge');
   private mergeShown = '';
@@ -130,6 +134,11 @@ export class Hud {
       send({ type: 'setOption', option: 'autoAdvance', value: this.autoAdvance.checked });
     });
     this.callWave.addEventListener('click', () => send({ type: 'callWave' }));
+    this.boost.addEventListener('click', () => this.withSlot((slot) => {
+      const hero = this.boost.dataset.rally === 'true';
+      send(hero ? { type: 'rally' } : { type: 'boost', slot });
+    }));
+    this.wallsEdit.addEventListener('click', () => { this.editingWalls = !this.editingWalls; });
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || document.querySelector('dialog[open]')) return;
       if (e.key === 'n' || e.key === 'N') send({ type: 'callWave' });
@@ -176,6 +185,14 @@ export class Hud {
     const callable = this.selectedSlot === undefined && canCallWave(state);
     this.callWave.hidden = !callable;
     if (callable) setText(this.callWave, `Next wave now (N)`);
+    const maze = state.map === 'maze' || state.nextMap === 'maze';
+    byId('walls').hidden = !maze || this.selectedSlot !== undefined;
+    if (!maze) this.editingWalls = false;
+    if (maze) {
+      this.wallsEdit.setAttribute('aria-pressed', String(this.editingWalls));
+      setText(this.wallsEdit, this.editingWalls ? 'Done placing walls' : 'Place walls');
+      setText(byId('walls-text'), `${state.walls.length} of ${MAZE.maxWalls} walls. ${canEditWalls(state) ? 'Tap squares to add or remove walls.' : 'Walls change only while the road is empty.'}`);
+    }
     this.foes.hidden = this.selectedSlot !== undefined;
     if (!this.foes.hidden) this.showFoes(state);
   }
@@ -244,6 +261,7 @@ export class Hud {
       ? `Boosts towers within ${HERO.auraRange} cells by ${Math.round((HERO.auraMult - 1) * 100)}%. Next level: ${formatNumber(state.heroXp)} of ${formatNumber(upgradeCost(tower.level), 'up')} experience, from half of all gold earned. To move it, pick an empty slot. ${ranks}`
       : ranks);
     this.showMerge(state, tower);
+    this.showBoost(state, tower, hero);
 
     this.specs.hidden = hero || tower.level < SPEC_LEVEL || tower.spec !== null;
     for (const { choice, name, text } of this.specItems) {
@@ -257,6 +275,21 @@ export class Hud {
     setText(this.upgrade, `Upgrade +${count} for ${formatNumber(cost, 'up')}`);
     this.upgrade.disabled = !canAfford(state.gold, cost);
     setText(this.sell, `Sell for ${formatNumber(sellValue(tower))}`);
+  }
+
+  /** Overdrive for a tower, Rally for the Warden: ready, running, or cooling down. */
+  private showBoost(state: State, tower: Tower, hero: boolean): void {
+    const { boost } = this;
+    boost.dataset.rally = String(hero);
+    const left = hero ? state.rallyTicks : tower.boostTicks;
+    const wait = hero ? state.rallyCooldown : tower.boostCooldown;
+    const name = hero
+      ? `Rally: all towers x${RALLY.damageMult} damage for ${RALLY.seconds} s`
+      : `Overdrive: x${OVERDRIVE.speedMult} attack speed for ${OVERDRIVE.seconds} s`;
+    if (left > 0) setText(boost, `${hero ? 'Rally' : 'Overdrive'} active: ${Math.ceil(left / 30)} s`);
+    else if (wait > 0) setText(boost, `${hero ? 'Rally' : 'Overdrive'} ready in ${Math.ceil(wait / 30)} s`);
+    else setText(boost, name);
+    boost.disabled = left > 0 || wait > 0;
   }
 
   /** Towers this one can merge with, as buttons. Rebuilt only when something shown changes. */

@@ -1,17 +1,22 @@
-import { ABILITIES, ENEMIES, SLOW_CAP, TICKS_PER_SECOND, type EnemyKind } from '../config/balance';
+import { ABILITIES, CHALLENGES, ENEMIES, SLOW_CAP, TICKS_PER_SECOND, type EnemyKind } from '../config/balance';
 import { enemyGold } from './economy';
-import { MAPS } from '../config/map';
-import { pathLength, pointAt } from './path';
+import { layoutOf, pointAt } from './path';
 import type { Enemy, SimEvent, State } from './types';
 import { log10EnemyHp } from './waves';
 
+/** Product of one challenge setting over the challenges in force. */
+export function challengeMult(state: State, key: 'speedMult' | 'hpMult' | 'goldMult'): number {
+  return state.challenges.reduce((m, c) => m * CHALLENGES[c][key], 1);
+}
+
 export function createEnemy(state: State, kind: EnemyKind, dist = 0): Enemy {
-  const { x, y } = pointAt(state.map, dist);
+  const layout = layoutOf(state);
+  const { x, y } = pointAt(layout, dist);
   return {
     id: state.nextEnemyId++, kind, dist, prevDist: dist, x, y,
     hp: 1, shield: ENEMIES[kind].shield ?? 0,
-    log10MaxHp: log10EnemyHp(state.wave, kind),
-    gold: enemyGold(state.wave, kind, state.greed, MAPS[state.map].goldMult),
+    log10MaxHp: log10EnemyHp(state.wave, kind) + Math.log10(challengeMult(state, 'hpMult')),
+    gold: enemyGold(state.wave, kind, state.greed, layout.goldMult * challengeMult(state, 'goldMult')),
     slows: [], brittleUntil: -1, stasisTick: -1, marked: false,
   };
 }
@@ -32,18 +37,19 @@ export function addSlow(enemy: Enemy, amount: number, untilTick: number): void {
 
 /** Moves and heals every enemy; enemies that reach the exit leave with hp 0. */
 export function moveEnemies(state: State, events: SimEvent[]): void {
-  const length = pathLength(state.map);
+  const layout = layoutOf(state);
+  const speed = challengeMult(state, 'speedMult');
   for (const e of state.enemies) {
     const def = ENEMIES[e.kind];
     e.prevDist = e.dist;
-    e.dist += (def.speed * (1 - currentSlow(e, state.tick))) / TICKS_PER_SECOND;
-    if (e.dist >= length) {
+    e.dist += (def.speed * speed * (1 - currentSlow(e, state.tick))) / TICKS_PER_SECOND;
+    if (e.dist >= layout.length) {
       state.lives -= def.leakLives;
       e.hp = 0;
       events.push({ type: 'leak', enemyId: e.id, kind: e.kind });
       continue;
     }
-    const at = pointAt(state.map, e.dist);
+    const at = pointAt(layout, e.dist);
     e.x = at.x;
     e.y = at.y;
     if (def.regen) e.hp = Math.min(1, e.hp + def.regen / TICKS_PER_SECOND);

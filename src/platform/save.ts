@@ -1,13 +1,13 @@
 import Decimal from 'break_infinity.js';
-import { ABILITY_KINDS, ENEMIES, HERO, IDLE, MERGE, TOWERS, WAVE, type AbilityKind, type EnemyKind, type TowerKind } from '../config/balance';
-import { GRID_H, GRID_W, MAPS, SLOT_COUNT, type MapId } from '../config/map';
+import { ABILITY_KINDS, CHALLENGES, ENEMIES, HERO, IDLE, MERGE, OVERDRIVE, RALLY, TOWERS, WAVE, type AbilityKind, type EnemyKind, type TowerKind } from '../config/balance';
+import { GRID_H, GRID_W, MAPS, MAZE, SLOT_COUNT, type MapId } from '../config/map';
 import { createEnemy } from '../sim/enemies';
-import { pathLength } from '../sim/path';
+import { MAZE_CELLS, isOpenOnly, layoutOf, mazeRoute } from '../sim/path';
 import { createState, refreshDamage } from '../sim/sim';
 import type { Enemy, State, Tower } from '../sim/types';
 import { DEFAULT_VOLUME, GUIDE_DONE, SPEEDS, type Settings, type Speed } from './settings';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 const EXPORT_PREFIX = 'TD1';
 const MAX_ITEMS = 500;
 
@@ -34,9 +34,9 @@ export function encode(state: State, settings: Settings, now: number): string {
       cores: num(cores),
       history: history.map((h) => ({ gold: num(h.gold), ticks: h.ticks })),
       heroXp: num(state.heroXp),
-      towers: towers.map(({ slot, kind, level, spec, cooldown, locks, buildPaid, upgradesPaid, tier, kills }) => (
-        { slot, kind, level, spec, cooldown, locks, buildPaid: num(buildPaid), upgradesPaid: num(upgradesPaid), tier, kills }
-      )),
+      towers: towers.map(({ slot, kind, level, spec, cooldown, locks, buildPaid, upgradesPaid, tier, kills, boostTicks, boostCooldown }) => ({
+        slot, kind, level, spec, cooldown, locks, buildPaid: num(buildPaid), upgradesPaid: num(upgradesPaid), tier, kills, boostTicks, boostCooldown,
+      })),
       enemies: enemies.map(({ id, kind, dist, prevDist, hp, shield, slows, brittleUntil, stasisTick, marked }) => (
         { id, kind, dist, prevDist, hp, shield, slows, brittleUntil, stasisTick, marked }
       )),
@@ -91,7 +91,7 @@ function decimal(v: unknown): Decimal {
   return Decimal.fromMantissaExponent_noNormalize(mantissa, exponent);
 }
 
-function unique(values: number[]): void {
+function unique(values: readonly (number | string)[]): void {
   check(new Set(values).size === values.length);
 }
 
@@ -111,13 +111,15 @@ function readTower(v: unknown): Tower {
     upgradesPaid: decimal(r.upgradesPaid),
     tier: int(r.tier, 1, MERGE.maxTier),
     kills: int(r.kills),
+    boostTicks: int(r.boostTicks, 0, OVERDRIVE.seconds * 30),
+    boostCooldown: int(r.boostCooldown, 0, OVERDRIVE.cooldownSeconds * 30),
   };
 }
 
 function readEnemy(state: State, v: unknown): Enemy {
   const r = obj(v);
   const kind = key<EnemyKind>(r.kind, ENEMIES);
-  const e = createEnemy(state, kind, real(r.dist, 0, pathLength(state.map)));
+  const e = createEnemy(state, kind, real(r.dist, 0, layoutOf(state).length));
   e.id = int(r.id);
   e.prevDist = real(r.prevDist, 0, e.dist);
   e.hp = real(r.hp, Number.MIN_VALUE, 1);
@@ -135,6 +137,15 @@ function readState(v: unknown): State {
   // The map comes first: enemy positions and the Warden's reach depend on it.
   s.map = key<MapId>(r.map, MAPS);
   s.nextMap = key<MapId>(r.nextMap, MAPS);
+  s.wildSeed = int(r.wildSeed, 0, 2 ** 31);
+  s.walls = list(r.walls, (c) => int(c, 0, MAZE_CELLS - 1), MAZE.maxWalls);
+  check(s.walls.every((c, i) => !isOpenOnly(c) && (i === 0 || c > s.walls[i - 1]!)) && mazeRoute(s.walls) !== undefined);
+  s.rallyTicks = int(r.rallyTicks, 0, RALLY.seconds * 30);
+  s.rallyCooldown = int(r.rallyCooldown, 0, RALLY.cooldownSeconds * 30);
+  for (const k of ['challenges', 'nextChallenges'] as const) {
+    s[k] = list(r[k], (c) => key<keyof typeof CHALLENGES>(c, CHALLENGES), 3);
+    unique(s[k]);
+  }
   s.tick = int(r.tick);
   s.gold = decimal(r.gold);
   s.power = int(r.power);
@@ -231,6 +242,19 @@ const MIGRATIONS: Record<number, (save: Raw) => Raw> = {
         ...state,
         map: 'switchback', nextMap: 'switchback', heroXp: [0, 0], heroMoveTicks: 0, tapTicks: 0,
         towers: Array.isArray(state.towers) ? state.towers.map((t) => ({ ...obj(t), tier: 1, kills: 0 })) : state.towers,
+      },
+    };
+  },
+  // Version 6 added the Wilds and the Maze, Overdrive, Rally and challenges.
+  5: (save) => {
+    const state = obj(save.state);
+    return {
+      ...save,
+      v: 6,
+      state: {
+        ...state,
+        wildSeed: 0, walls: [], rallyTicks: 0, rallyCooldown: 0, challenges: [], nextChallenges: [],
+        towers: Array.isArray(state.towers) ? state.towers.map((t) => ({ ...obj(t), boostTicks: 0, boostCooldown: 0 })) : state.towers,
       },
     };
   },

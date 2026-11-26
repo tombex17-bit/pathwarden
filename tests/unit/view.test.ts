@@ -35,9 +35,9 @@ describe('view', () => {
     const view = fitView(360, 202.5);
     MAPS.switchback.slots.forEach((slot, i) => {
       const s = toScreen(view, slot);
-      expect(slotAt(view, s.x + 21, s.y, 'switchback')).toBe(i);
+      expect(slotAt(view, s.x + 21, s.y, MAPS.switchback.slots)).toBe(i);
     });
     const first = toScreen(view, MAPS.switchback.slots[0]);
-    expect(slotAt(view, first.x, first.y + 23, 'switchback')).toBeUndefined();
+    expect(slotAt(view, first.x, first.y + 23, MAPS.switchback.slots)).toBeUndefined();
   });
 });

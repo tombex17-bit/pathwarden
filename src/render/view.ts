@@ -1,4 +1,4 @@
-import { GRID_H, GRID_W, MAPS, SLOT_RADIUS, type MapId, type Point } from '../config/map';
+import { GRID_H, GRID_W, SLOT_RADIUS, type Point } from '../config/map';
 
 /** Maps grid cells to CSS pixels: the whole map, centered, aspect ratio kept. */
 export interface View { readonly scale: number; readonly left: number; readonly top: number }
@@ -19,10 +19,10 @@ export function toGrid(view: View, x: number, y: number): Point {
 }
 
 /** The nearest slot within its own radius or 22 px, whichever is larger. */
-export function slotAt(view: View, x: number, y: number, map: MapId): number | undefined {
+export function slotAt(view: View, x: number, y: number, slots: readonly Point[]): number | undefined {
   let best: number | undefined;
   let bestDist = Math.max(TAP_RADIUS_PX, SLOT_RADIUS * view.scale);
-  MAPS[map].slots.forEach((slot, i) => {
+  slots.forEach((slot, i) => {
     const s = toScreen(view, slot);
     const d = Math.hypot(s.x - x, s.y - y);
     if (d <= bestDist) {

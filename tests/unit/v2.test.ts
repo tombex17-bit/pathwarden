@@ -1,10 +1,10 @@
 import Decimal from 'break_infinity.js';
 import { describe, expect, it } from 'vitest';
 import { HERO, MERGE, RANKS, TAP, TICKS_PER_SECOND } from '../../src/config/balance';
-import { GRID_H, GRID_W, MAPS, MAP_IDS, PATH_WIDTH, SLOT_COUNT, SLOT_RADIUS, type Point } from '../../src/config/map';
+import { GRID_H, GRID_W, MAPS, MAP_IDS, PATH_WIDTH, SLOT_COUNT, SLOT_RADIUS, type MapId } from '../../src/config/map';
 import { log10FormationDps } from '../../src/sim/abilities';
 import { buildCost, enemyGold } from '../../src/sim/economy';
-import { pathLength, pointAt } from '../../src/sim/path';
+import { distanceToPath, layoutOf, type Layout } from '../../src/sim/path';
 import { canCallWave, createState, step } from '../../src/sim/sim';
 import { log10Damage, rankOf } from '../../src/sim/stats';
 import { heroOf } from '../../src/sim/towers';
@@ -15,38 +15,35 @@ const ok = { ok: true };
 const results = (s: State, ...commands: Command[]): unknown[] => step(s, commands).results;
 const events = (s: State, ...commands: Command[]): SimEvent[] => step(s, commands).events;
 
-/** Distance from a point to the nearest point of a map's path. */
-function toPath(map: (typeof MAP_IDS)[number], p: Point): number {
-  let best = Infinity;
-  for (let d = 0; d <= pathLength(map); d += 0.05) {
-    const q = pointAt(map, d);
-    best = Math.min(best, Math.hypot(q.x - p.x, q.y - p.y));
+const layout = (map: MapId, wildSeed = 0, walls: number[] = []): Layout => layoutOf({ map, wildSeed, walls });
+const FIXED = MAP_IDS.filter((m) => MAPS[m].kind === 'fixed');
+
+/** A road across the grid along grid lines, and 12 slots clear of it, apart, inside the grid and in reach. */
+export function checkLayout(l: Layout, name: string, reach = true): void {
+  const { path, slots } = l;
+  expect(path[0]!.x, name).toBe(0);
+  expect(path[path.length - 1]!.x, name).toBe(GRID_W);
+  for (let i = 1; i < path.length; i++) expect(path[i]!.x === path[i - 1]!.x || path[i]!.y === path[i - 1]!.y, name).toBe(true);
+  expect(slots).toHaveLength(SLOT_COUNT);
+  for (const [i, s] of slots.entries()) {
+    expect(s.x - SLOT_RADIUS, `${name} slot ${i}`).toBeGreaterThanOrEqual(0);
+    expect(s.x + SLOT_RADIUS, `${name} slot ${i}`).toBeLessThanOrEqual(GRID_W);
+    expect(s.y - SLOT_RADIUS, `${name} slot ${i}`).toBeGreaterThanOrEqual(0);
+    expect(s.y + SLOT_RADIUS, `${name} slot ${i}`).toBeLessThanOrEqual(GRID_H);
+    const gap = distanceToPath(path, s);
+    expect(gap, `${name} slot ${i} clear of the path`).toBeGreaterThanOrEqual(PATH_WIDTH / 2 + SLOT_RADIUS);
+    // Every tower kind reaches the path from every slot (the shortest range is 2.4).
+    if (reach) expect(gap, `${name} slot ${i} in reach`).toBeLessThanOrEqual(2);
+    for (const [j, o] of slots.entries()) if (j > i) expect(Math.hypot(s.x - o.x, s.y - o.y), `${name} slots ${i}, ${j}`).toBeGreaterThan(1.2);
   }
-  return best;
 }
 
 describe('maps', () => {
-  it.each(MAP_IDS)('%s: a path across the grid, and 12 slots clear of it, apart, and in reach', (map) => {
-    const { path, slots } = MAPS[map];
-    expect(path[0]!.x).toBe(0);
-    expect(path[path.length - 1]!.x).toBe(GRID_W);
-    for (let i = 1; i < path.length; i++) expect(path[i]!.x === path[i - 1]!.x || path[i]!.y === path[i - 1]!.y).toBe(true);
-    expect(slots).toHaveLength(SLOT_COUNT);
-    for (const [i, s] of slots.entries()) {
-      expect(s.x - SLOT_RADIUS, `slot ${i}`).toBeGreaterThanOrEqual(0);
-      expect(s.x + SLOT_RADIUS, `slot ${i}`).toBeLessThanOrEqual(GRID_W);
-      expect(s.y - SLOT_RADIUS, `slot ${i}`).toBeGreaterThanOrEqual(0);
-      expect(s.y + SLOT_RADIUS, `slot ${i}`).toBeLessThanOrEqual(GRID_H);
-      const gap = toPath(map, s);
-      expect(gap, `slot ${i} clear of the path`).toBeGreaterThanOrEqual(PATH_WIDTH / 2 + SLOT_RADIUS);
-      // Every tower kind reaches the path from every slot (the shortest range is 2.4).
-      expect(gap, `slot ${i} in reach`).toBeLessThanOrEqual(2);
-      for (const [j, o] of slots.entries()) if (j > i) expect(Math.hypot(s.x - o.x, s.y - o.y), `slots ${i}, ${j}`).toBeGreaterThan(1.2);
-    }
-  });
+  it.each(FIXED)('%s is laid out well', (map) => checkLayout(layout(map), map));
 
   it('unlock in order, with more gold for harder maps', () => {
-    expect(MAP_IDS.map((m) => [MAPS[m].unlockWave, MAPS[m].goldMult, pathLength(m)])).toEqual([[0, 1, 44], [25, 1.15, 34], [50, 1.3, 24]]);
+    expect(FIXED.map((m) => [MAPS[m].unlockWave, layout(m).goldMult, layout(m).length])).toEqual([[0, 1, 44], [25, 1.15, 34], [50, 1.3, 24]]);
+    expect(MAP_IDS.map((m) => MAPS[m].unlockWave)).toEqual([0, 25, 50, 60, 80]);
   });
 
   it('changes only when the next wave starts, and towers keep their slots', () => {

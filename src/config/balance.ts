@@ -222,3 +222,22 @@ export const MERGE = { minLevel: 10, maxTier: 3, tierMult: 2.5 } as const;
 
 /** Kills a tower needs for each rank; every rank multiplies its damage. */
 export const RANKS = { kills: [10, 50, 250, 1000, 5000], mult: 1.1 } as const;
+
+// ---- Version 2, part 2 (SPEC section 21) ----
+
+/** A boost for one tower: faster attacks for a while, then a wait before it works again. */
+export const OVERDRIVE = { seconds: 8, cooldownSeconds: 40, speedMult: 2 } as const;
+
+/** The Warden's ability: every tower hits harder for a while. */
+export const RALLY = { seconds: 8, cooldownSeconds: 60, damageMult: 1.5 } as const;
+
+/** Optional rules for a run, chosen for the next run; each one active adds to the Cores of that run's prestige. */
+export const CHALLENGES = {
+  swift: { name: 'Swift', text: 'Enemies move 25% faster', speedMult: 1.25, hpMult: 1, goldMult: 1 },
+  armored: { name: 'Armored', text: 'Enemies have twice the HP', speedMult: 1, hpMult: 2, goldMult: 1 },
+  lean: { name: 'Lean', text: 'Enemies give 40% less gold', speedMult: 1, hpMult: 1, goldMult: 0.6 },
+} as const;
+export type ChallengeKind = keyof typeof CHALLENGES;
+export const CHALLENGE_KINDS = Object.keys(CHALLENGES) as ChallengeKind[];
+/** Extra Cores at prestige for each active challenge, as a share of the usual amount. */
+export const CHALLENGE_CORES = 0.5;

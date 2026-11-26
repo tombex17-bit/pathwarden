@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
-import { MAPS, type MapId } from '../../src/config/map';
+import type { MapId } from '../../src/config/map';
+import { layoutOf } from '../../src/sim/path';
 import { fitView, toScreen } from '../../src/render/view';
 
 export const SIZES = [
@@ -15,9 +16,9 @@ export function collectErrors(page: Page): string[] {
   return errors;
 }
 
-export async function clickSlot(page: Page, slot: number, map: MapId = 'switchback'): Promise<void> {
+export async function clickSlot(page: Page, slot: number, map: MapId = 'switchback', wildSeed = 0, walls: number[] = []): Promise<void> {
   const box = (await page.locator('#map').boundingBox())!;
-  const at = toScreen(fitView(box.width, box.height), MAPS[map].slots[slot]!);
+  const at = toScreen(fitView(box.width, box.height), layoutOf({ map, wildSeed, walls }).slots[slot]!);
   await page.mouse.click(box.x + at.x, box.y + at.y);
 }
 

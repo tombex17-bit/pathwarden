@@ -1,6 +1,6 @@
 # SPEC: Pathwarden, a 2D tower defense idle game (versions 1 and 2)
 
-Status: reviewed and revised. All six version 1 milestones are built, and version 2 (section 19) is built. The game is named Pathwarden.
+Status: reviewed and revised. All six version 1 milestones are built, and version 2 (sections 19 and 21) is built. The game is named Pathwarden.
 
 Decisions marked **[A]** came from the interview. Those marked **[D]** are design defaults chosen here.
 
@@ -291,7 +291,7 @@ Full visual design, layouts, sound, installable offline app.
 
 ## 17. Out of scope for version 1
 
-Everything below was left out of version 1, grouped by kind. Version 2 (section 19) took on the first four playability items.
+Everything below was left out of version 1, grouped by kind. Version 2 built every playability item (sections 19 and 21).
 
 ### Playability
 
@@ -301,9 +301,9 @@ Everything below was left out of version 1, grouped by kind. Version 2 (section 
 | Hero tower | Built in version 2: the Warden |
 | Tapping enemies | Built in version 2 |
 | Manual wave calls | Built in version 2: Next wave now |
-| Generated paths | Still out (section 20) |
-| Player-built mazes | Still out (section 20) |
-| Tower boosts | Still out (section 20). The Warden's boost to nearby towers covers part of the idea. |
+| Generated paths | Built in version 2: the Wilds |
+| Player-built mazes | Built in version 2: the Maze |
+| Tower boosts | Built in version 2: Overdrive |
 
 ### Monetization
 
@@ -381,7 +381,50 @@ Added after version 1, at the user's request: the playability items of section 1
 
 ## 20. Out of scope for version 2
 
-- **Playability:** generated paths, player-built mazes, tower boosts (a timed boost bought or cast on one tower), more heroes or hero abilities, and challenge modes such as daily seeds.
+Every playability item is now built (sections 19 and 21), so that line is empty.
+
+- **Playability:** -
 - **Monetization:** payments and ads.
 - **Multiplayer and online:** multiplayer, accounts, cloud saves, leaderboards, cheat prevention and analytics; all need a server.
 - **Nice to have:** music, translation, custom art or purchased assets, and native apps.
+
+## 21. Version 2, part 2: the rest of playability
+
+Added at the user's request, to build every playability item that section 20 still listed. Saves are version 6; older saves get no walls, no challenges, and Overdrive and Rally ready.
+
+### The Wilds: generated roads
+
+- Unlocks at best wave 60. Each time the player switches to it, and at each prestige while on it, the road is generated again from a new seed.
+- A road runs from the left edge to the right with 2 to 4 bends up or down, at least 3 cells apart. 12 slots are picked at random from spots 0.9 to 2 cells from the road and at least 1.3 cells from each other, so every tower kind reaches the road from every slot.
+- Shorter roads pay more: gold x(1 + (44 - length) / 70), from x1 at the first map's length (44) up to x1.3.
+- A unit test generates 60 roads and checks each one like the hand-drawn maps.
+
+### The Maze: walls the player places
+
+- Unlocks at best wave 80. The field is a 16 x 9 grid of squares; enemies enter and leave on the middle row and take the shortest way along squares, keeping straight where they can.
+- The 12 slots stand on squares and block the way. **Place walls** in the panel turns map taps into placing and removing walls: at most 30, never on the entrance, exit or a slot, and never closing the last way through.
+- Walls change only while the road is empty (after a wave's enemies are all gone, or during the pause after a loss), or at any time while the Maze is chosen but not yet in play. The road is drawn again at once.
+
+### Overdrive (tower boost)
+
+- Every tower, the Warden included, has its own Overdrive in its panel: x2 attack speed for 8 seconds, then 40 seconds before it can be used again. A gold ring shows while it runs.
+
+### Rally (the Warden's ability)
+
+- From the Warden's panel: every tower deals x1.5 damage for 8 seconds, then 60 seconds before the next Rally.
+
+### Challenges
+
+- Chosen in the menu for the next run, and in force from the next prestige. Each one in force adds 50% to the Cores of that run's prestige.
+
+| Challenge | Effect |
+| --- | --- |
+| Swift | Enemies move 25% faster |
+| Armored | Enemies have twice the HP |
+| Lean | Enemies give 40% less gold |
+
+### Checks
+
+- `tests/unit/v2b.test.ts` covers every rule above, including saving and loading walls, roads, challenges, Overdrive and Rally, and refusing saves with walls that block the way or stand on a slot.
+- `tests/e2e/v2b.spec.ts` covers Overdrive, Rally, challenges through a prestige and a reload, placing and removing walls, and the Wilds' slots, and checks the Maze and Wilds screens at all four sizes.
+- None of these is used by the balance bots, so the section 8 and 9 measurements of section 19 still hold. The first-run pacing check was run again and gave the same results.

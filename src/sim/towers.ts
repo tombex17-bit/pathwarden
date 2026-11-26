@@ -1,7 +1,7 @@
 import Decimal from 'break_infinity.js';
 import { HERO, TICKS_PER_SECOND } from '../config/balance';
 import { affordableLevels, upgradeCost } from './economy';
-import { slotsOf } from './path';
+import { layoutOf } from './path';
 import { log10Damage, rankOf } from './stats';
 import type { SimEvent, State, Tower } from './types';
 
@@ -15,14 +15,14 @@ export const builtTowers = (state: State): number => state.towers.filter((t) => 
 export function newTower(slot: number, kind: Tower['kind'], buildPaid: Decimal): Tower {
   return {
     slot, kind, level: 1, spec: null, cooldown: 0, log10Damage: 0,
-    locks: [], buildPaid, upgradesPaid: new Decimal(0), tier: 1, kills: 0,
+    locks: [], buildPaid, upgradesPaid: new Decimal(0), tier: 1, kills: 0, boostTicks: 0, boostCooldown: 0,
   };
 }
 
 function inAura(state: State, tower: Tower): boolean {
   const hero = heroOf(state);
   if (!hero || hero === tower) return false;
-  const slots = slotsOf(state.map);
+  const { slots } = layoutOf(state);
   const a = slots[hero.slot]!;
   const b = slots[tower.slot]!;
   return (a.x - b.x) ** 2 + (a.y - b.y) ** 2 <= HERO.auraRange ** 2;

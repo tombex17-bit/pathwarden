@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GOLD } from '../../src/config/balance';
-import { pathLength, pointAt } from '../../src/sim/path';
+import { layoutOf, pointAt } from '../../src/sim/path';
+
+const SWITCHBACK = layoutOf({ map: 'switchback', wildSeed: 0, walls: [] });
 import { createNewGame, createState, step } from '../../src/sim/sim';
 import type { SimEvent, State } from '../../src/sim/types';
 import { buildSpawns, log10EnemyHp, slotCount } from '../../src/sim/waves';
@@ -8,10 +10,10 @@ import { addTower, build, buildAll, emptyField, hitIds, place, rich, run, until 
 
 describe('path', () => {
   it('is 44 cells long and follows its corners', () => {
-    expect(pathLength('switchback')).toBe(44);
-    expect(pointAt('switchback', 0)).toEqual({ x: 0, y: 1 });
-    expect(pointAt('switchback', 14.5)).toEqual({ x: 13, y: 2.5 });
-    expect(pointAt('switchback', 44)).toEqual({ x: 16, y: 7 });
+    expect(SWITCHBACK.length).toBe(44);
+    expect(pointAt(SWITCHBACK, 0)).toEqual({ x: 0, y: 1 });
+    expect(pointAt(SWITCHBACK, 14.5)).toEqual({ x: 13, y: 2.5 });
+    expect(pointAt(SWITCHBACK, 44)).toEqual({ x: 16, y: 7 });
   });
 });
 
