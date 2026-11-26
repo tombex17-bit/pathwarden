@@ -58,7 +58,7 @@ export async function openPlainTab(url: string): Promise<PlainTab> {
 
   return {
     async evaluate<T>(expression: string): Promise<T> {
-      const { result, exceptionDetails } = await send('Runtime.evaluate', { expression, returnByValue: true }, String(sessionId));
+      const { result, exceptionDetails } = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true }, String(sessionId));
       if (exceptionDetails) throw new Error(JSON.stringify(exceptionDetails));
       return (result as { value: T }).value;
     },

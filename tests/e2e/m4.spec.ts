@@ -55,6 +55,8 @@ test('pauses while really hidden, pays on return, and saves', async ({ baseURL }
     }`);
     await expect.poll(() => text('wave'), { timeout: 30_000 }).toBe('30');
     await tab.evaluate("window.log = []; document.addEventListener('visibilitychange', () => log.push(document.visibilityState)); 0");
+    // Let the game play a few frames first, so there is progress to freeze.
+    await tab.evaluate('new Promise((done) => { let n = 0; const f = () => (++n >= 10 ? done(0) : requestAnimationFrame(f)); requestAnimationFrame(f); })');
 
     await tab.hide();
     await expect.poll(visibility).toBe('hidden');
