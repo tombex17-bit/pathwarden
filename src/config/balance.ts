@@ -16,7 +16,7 @@ export const WAVE = {
 } as const;
 
 export const HP = { base: 14, growth: 1.09 } as const;
-export const GOLD = { base: 2, growth: 1.065, start: 60 } as const;
+export const GOLD = { base: 2, growth: 1.065, start: 70 } as const;
 
 export const BUILD_COST = { base: 50, growth: 1.6 } as const;
 export const UPGRADE_COST = { base: 20, growth: 1.09 } as const;
@@ -72,6 +72,9 @@ export const AUTO_CAST_ABILITIES: readonly AbilityKind[] = ['meteor', 'stasis', 
 export type EnemyKind = 'grunt' | 'runner' | 'brute' | 'swarm' | 'shielded' | 'regenerator' | 'boss';
 
 export interface EnemyDef {
+  readonly name: string;
+  /** What sets it apart, for the enemy list; empty for the plain one. */
+  readonly note: string;
   readonly firstWave: number;
   /** Chance relative to other types; 0 means it is never picked for a normal slot. */
   readonly weight: number;
@@ -93,13 +96,13 @@ export interface EnemyDef {
 }
 
 export const ENEMIES: Readonly<Record<EnemyKind, EnemyDef>> = {
-  grunt: { firstWave: 1, weight: 6, hpMult: 1, goldMult: 1, speed: 2, leakLives: 1 },
-  runner: { firstWave: 4, weight: 3, hpMult: 0.6, goldMult: 0.6, speed: 3.2, leakLives: 1 },
-  brute: { firstWave: 8, weight: 2, hpMult: 2, goldMult: 2, speed: 1.3, leakLives: 1 },
-  swarm: { firstWave: 12, weight: 2, hpMult: 0.3, goldMult: 0.3, speed: 2.2, leakLives: 1, perSlot: 3, unitGap: 0.2 },
-  shielded: { firstWave: 18, weight: 2, hpMult: 1, goldMult: 1.3, speed: 1.8, leakLives: 1, shield: 0.35 },
-  regenerator: { firstWave: 25, weight: 2, hpMult: 0.8, goldMult: 1, speed: 1.8, leakLives: 1, regen: 0.02 },
-  boss: { firstWave: 10, weight: 0, hpMult: 10, goldMult: WAVE.bossGoldPerSlot, speed: 1.3, leakLives: 10, slowTaken: 0.5 },
+  grunt: { name: 'Grunt', note: '', firstWave: 1, weight: 6, hpMult: 1, goldMult: 1, speed: 2, leakLives: 1 },
+  runner: { name: 'Runner', note: 'Fast', firstWave: 4, weight: 3, hpMult: 0.6, goldMult: 0.6, speed: 3.2, leakLives: 1 },
+  brute: { name: 'Brute', note: 'Slow and tough', firstWave: 8, weight: 2, hpMult: 2, goldMult: 2, speed: 1.3, leakLives: 1 },
+  swarm: { name: 'Swarm', note: 'Comes in threes', firstWave: 12, weight: 2, hpMult: 0.3, goldMult: 0.3, speed: 2.2, leakLives: 1, perSlot: 3, unitGap: 0.2 },
+  shielded: { name: 'Shielded', note: 'Shield of 35% extra HP; Beam ignores it', firstWave: 18, weight: 2, hpMult: 1, goldMult: 1.3, speed: 1.8, leakLives: 1, shield: 0.35 },
+  regenerator: { name: 'Regenerator', note: 'Heals 2% per second', firstWave: 25, weight: 2, hpMult: 0.8, goldMult: 1, speed: 1.8, leakLives: 1, regen: 0.02 },
+  boss: { name: 'Boss', note: 'Costs all 10 lives if it gets through; slows work half as well', firstWave: 10, weight: 0, hpMult: 10, goldMult: WAVE.bossGoldPerSlot, speed: 1.3, leakLives: 10, slowTaken: 0.5 },
 };
 
 export type TowerKind = 'bolt' | 'cannon' | 'frost' | 'beam' | 'tesla';

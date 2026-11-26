@@ -46,7 +46,7 @@ test('pauses while really hidden, pays on return, and saves', async ({ baseURL }
 
     // Start from the prepared save. Reloading would first save the fresh game over it, so block that once.
     // Edge starts slowly while other tests run.
-    await expect.poll(() => text('gold'), { timeout: 30_000 }).toBe('60');
+    await expect.poll(() => text('gold'), { timeout: 30_000 }).toBe('70');
     await tab.evaluate(`{
       const text = ${JSON.stringify(saved(game()))};
       localStorage.setItem('${MAIN_KEY}', text);
@@ -121,7 +121,7 @@ test('speed cycles 1x, 2x, 3x', async ({ page }) => {
 test('exports, imports, and refuses bad text', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('./');
-  await expect(page.locator('#gold')).toHaveText('60');
+  await expect(page.locator('#gold')).toHaveText('70');
   await page.locator('#menu-open').click();
   const own = await page.locator('#export-text').inputValue();
   expect(own).toMatch(/^TD1\./);
@@ -168,7 +168,7 @@ test('reset needs confirming', async ({ page }) => {
   await page.locator('#reset').click();
   await page.locator('#reset-yes').click();
   await expect(page.locator('#wave')).toHaveText('1');
-  await expect(page.locator('#gold')).toHaveText('60');
+  await expect(page.locator('#gold')).toHaveText('70');
 });
 
 test('a second tab never saves, and takes over when the first closes', async ({ context }) => {
@@ -246,7 +246,7 @@ test('works with a warning when Web Locks are missing', async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(navigator, 'locks', { value: undefined }));
   await page.goto('./');
   await expect(page.locator('#warning')).toContainText('Use only one tab');
-  await expect(page.locator('#gold')).toHaveText('60');
+  await expect(page.locator('#gold')).toHaveText('70');
   expect(errors).toEqual([]);
 });
 

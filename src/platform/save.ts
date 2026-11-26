@@ -5,9 +5,9 @@ import { createEnemy } from '../sim/enemies';
 import { PATH_LENGTH } from '../sim/path';
 import { createState, refreshDamage } from '../sim/sim';
 import type { Enemy, State, Tower } from '../sim/types';
-import { DEFAULT_VOLUME, SPEEDS, type Settings, type Speed } from './settings';
+import { DEFAULT_VOLUME, GUIDE_DONE, SPEEDS, type Settings, type Speed } from './settings';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 const EXPORT_PREFIX = 'TD1';
 const MAX_ITEMS = 500;
 
@@ -160,6 +160,8 @@ function readState(v: unknown): State {
   s.cores = decimal(r.cores);
   s.prestiges = int(r.prestiges);
   s.clearedThisRun = int(r.clearedThisRun);
+  s.holdForTower = bool(r.holdForTower);
+  check(!s.holdForTower || (s.wave === 1 && s.towers.length === 0));
   s.layout = list(r.layout, (k) => (k === null ? null : key<TowerKind>(k, TOWERS)), SLOTS.length);
   check(s.layout.length === SLOTS.length);
   const owned = obj(r.owned);
@@ -172,9 +174,9 @@ function readState(v: unknown): State {
 }
 
 function readSettings(v: unknown): Settings {
-  const { speed, volume, muted } = obj(v);
+  const { speed, volume, muted, guide } = obj(v);
   check(SPEEDS.includes(speed as Speed));
-  return { speed: speed as Speed, volume: real(volume, 0, 1), muted: bool(muted) };
+  return { speed: speed as Speed, volume: real(volume, 0, 1), muted: bool(muted), guide: int(guide, 0, GUIDE_DONE) };
 }
 
 /** Each entry turns a save of that version into the next version. */
@@ -202,6 +204,10 @@ const MIGRATIONS: Record<number, (save: Raw) => Raw> = {
   },
   // Version 3 added sound settings.
   2: (save) => ({ ...save, v: 3, settings: { ...obj(save.settings), volume: DEFAULT_VOLUME, muted: false } }),
+  // Version 4 added the first-wave hold and the guide. Games that already exist need neither.
+  3: (save) => ({
+    ...save, v: 4, settings: { ...obj(save.settings), guide: GUIDE_DONE }, state: { ...obj(save.state), holdForTower: false },
+  }),
 };
 
 export function decode(text: string): Decoded {

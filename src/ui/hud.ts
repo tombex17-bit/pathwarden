@@ -1,11 +1,14 @@
 import Decimal from 'break_infinity.js';
-import { BUY_AMOUNTS, SPEC_LEVEL, TOWERS, TOWER_KINDS, type BuyAmount, type SpecChoice, type TowerKind } from '../config/balance';
+import {
+  BUY_AMOUNTS, ENEMIES, SPEC_LEVEL, TOWERS, TOWER_KINDS, type BuyAmount, type EnemyKind, type SpecChoice, type TowerKind,
+} from '../config/balance';
 import { COLORS } from '../render/palette';
-import { fillTower } from '../render/shapes';
+import { fillTower, traceEnemy } from '../render/shapes';
 import { buildCost, canAfford, levelsFor, sellValue, upgradeCost } from '../sim/economy';
 import { towerStats } from '../sim/stats';
 import type { Command, SimEvent, State, Tower } from '../sim/types';
 import { button, byId, create, setText } from './dom';
+import { foeRows } from './foes';
 import { formatNumber } from './format';
 import { say } from './toast';
 
@@ -20,6 +23,23 @@ function towerIcon(kind: TowerKind): HTMLCanvasElement {
     ctx.fillStyle = COLORS[kind];
     fillTower(ctx, kind, { x: 1 / 2.8, y: 1 / 2.8 });
   }
+  return icon;
+}
+
+function enemyIcon(kind: EnemyKind): HTMLCanvasElement {
+  const icon = create('canvas');
+  const size = 72;
+  icon.width = size;
+  icon.height = size;
+  const ctx = icon.getContext('2d');
+  if (ctx) {
+    // One cell fills the icon, so sizes compare as on the map.
+    ctx.scale(size, size);
+    ctx.fillStyle = kind === 'boss' ? COLORS.boss : COLORS.enemy;
+    traceEnemy(ctx, kind, { x: 0.5, y: 0.5 });
+    ctx.fill();
+  }
+  icon.setAttribute('aria-hidden', 'true');
   return icon;
 }
 
@@ -45,6 +65,8 @@ export class Hud {
   private readonly upgrade = byId<HTMLButtonElement>('upgrade');
   private readonly sell = byId<HTMLButtonElement>('sell');
   private readonly autoAdvance = byId<HTMLInputElement>('auto-advance');
+  private readonly foes = byId('foes');
+  private foesShown = '';
 
   private readonly shopItems = TOWER_KINDS.map((kind) => {
     const el = button(() => this.withSlot((slot) => this.send({ type: 'build', slot, tower: kind })));
@@ -110,8 +132,34 @@ export class Hud {
     else if (this.selectedSlot !== undefined) this.showShop(state);
     else {
       setText(this.title, 'Build');
-      setText(this.text, 'Pick a slot on the map to place a tower.');
+      setText(this.text, state.holdForTower
+        ? 'Wave 1 starts when you build your first tower. Pick a slot on the map.'
+        : 'Pick a slot on the map to place a tower.');
     }
+    this.foes.hidden = this.selectedSlot !== undefined;
+    if (!this.foes.hidden) this.showFoes(state);
+  }
+
+  /** The enemies left in this wave. Rebuilt only when something shown changes. */
+  private showFoes(state: State): void {
+    const rows = foeRows(state).map((r) => ({
+      kind: r.kind, left: r.left, hp: formatNumber(r.hp), gold: formatNumber(r.gold), speed: oneDecimal(r.speed),
+    }));
+    const key = `${state.wave}|${JSON.stringify(rows)}`;
+    if (key === this.foesShown) return;
+    this.foesShown = key;
+    setText(byId('foes-title'), rows.length > 0 ? `Wave ${state.wave} enemies left` : `Wave ${state.wave} cleared`);
+    byId('foe-list').replaceChildren(...rows.map((r) => {
+      const def = ENEMIES[r.kind];
+      const row = create('div', 'foe');
+      row.dataset.enemy = r.kind;
+      const details = [`Gold ${r.gold}`, `Speed ${r.speed}`, def.note].filter(Boolean).join(' · ');
+      row.append(
+        enemyIcon(r.kind), create('span', 'foe-name', `${def.name} ×${r.left}`),
+        create('span', 'foe-hp', `HP ${r.hp}`), create('small', '', details),
+      );
+      return row;
+    }));
   }
 
   private withSlot(action: (slot: number) => void): void {

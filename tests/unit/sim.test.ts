@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { GOLD } from '../../src/config/balance';
 import { PATH_LENGTH, pointAt } from '../../src/sim/path';
-import { createState, step } from '../../src/sim/sim';
+import { createNewGame, createState, step } from '../../src/sim/sim';
 import type { SimEvent, State } from '../../src/sim/types';
 import { buildSpawns, log10EnemyHp, slotCount } from '../../src/sim/waves';
 import { addTower, build, buildAll, emptyField, hitIds, place, rich, run, until } from './helpers';
@@ -102,7 +103,7 @@ describe('losing', () => {
     expect(s.spawns).toHaveLength(0);
     expect(s.bestRun).toBe(0);
     expect(s.towers).toEqual([tower]);
-    expect(s.gold.toNumber()).toBe(60);
+    expect(s.gold.toNumber()).toBe(GOLD.start);
     expect(until(s, 'waveStart')).toBe(60);
     expect(s.lives).toBe(10);
     expect(s.wave).toBe(to);
@@ -169,5 +170,31 @@ describe('determinism', () => {
     expect(kinds(1, 1)).toBe(kinds(1, 1));
     expect(kinds(2, 1)).not.toBe(kinds(1, 1));
     expect(kinds(1, 2)).not.toBe(kinds(1, 1));
+  });
+});
+
+describe('a brand-new game', () => {
+  it('holds wave 1 until the first tower is built', () => {
+    const s = createNewGame(1);
+    const spawns = s.spawns.length;
+    expect(run(s, 30 * 60)).toEqual([]);
+    expect([s.waveTick, s.enemies.length, s.spawns.length, s.lives, s.gold.toNumber()]).toEqual([0, 0, spawns, 10, GOLD.start]);
+    // Abilities still cool down, and commands still work.
+    step(s, [build(5)]);
+    expect(s.holdForTower).toBe(false);
+    expect(s.waveTick).toBe(1);
+    expect(s.enemies).toHaveLength(1);
+  });
+
+  it('does not hold again after the tower is sold', () => {
+    const s = createNewGame(1);
+    step(s, [build(5)]);
+    step(s, [{ type: 'sell', slot: 5 }]);
+    run(s, 30);
+    expect(s.waveTick).toBe(32);
+  });
+
+  it('other new states start at once', () => {
+    expect(createState(1).holdForTower).toBe(false);
   });
 });

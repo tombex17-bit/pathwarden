@@ -1,4 +1,5 @@
 import Decimal from 'break_infinity.js';
+import { GOLD } from '../../src/config/balance';
 import { describe, expect, it } from 'vitest';
 import { AWAY_GAP_MS, Session, deservesSummary } from '../../src/platform/session';
 import { defaultSettings, type Speed } from '../../src/platform/settings';
@@ -37,7 +38,7 @@ describe('offline gold after loading', () => {
   it('pays nothing before the first finished wave', () => {
     const s = createState(1);
     session(s, T0 - 8 * HOUR);
-    expect(s.gold.toNumber()).toBe(60);
+    expect(s.gold.toNumber()).toBe(GOLD.start);
   });
 
   it.each<Speed>([1, 2, 3])('ignores speed %ix', (speed) => {
@@ -221,5 +222,5 @@ it.each([[0, '0 s'], [59.9, '59 s'], [60, '1 min 0 s'], [125, '2 min 5 s'], [360
 });
 
 it('new games run at 1x', () => {
-  expect(defaultSettings()).toEqual({ speed: 1, volume: 0.6, muted: false });
+  expect(defaultSettings()).toEqual({ speed: 1, volume: 0.6, muted: false, guide: 0 });
 });

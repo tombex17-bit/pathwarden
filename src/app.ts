@@ -9,11 +9,12 @@ import { registerOffline } from './platform/offline';
 import { claimTab } from './platform/tab-lock';
 import { Renderer } from './render/renderer';
 import { fitView, slotAt, toGrid, type View } from './render/view';
-import { createState } from './sim/sim';
+import { createNewGame } from './sim/sim';
 import type { Command } from './sim/types';
 import { AbilityBar } from './ui/ability-bar';
 import { byId, setText } from './ui/dom';
 import { formatDuration, formatNumber } from './ui/format';
+import { Guide } from './ui/guide';
 import { Hud } from './ui/hud';
 import { Menu } from './ui/menu';
 
@@ -57,8 +58,10 @@ const menu = new Menu({
   },
 }, send);
 
+const guide = new Guide(() => session?.settings, () => save());
+
 function newGame(): SaveData {
-  return { state: createState(Math.floor(Math.random() * 2 ** 31)), settings: defaultSettings(), savedAt: Date.now() };
+  return { state: createNewGame(Math.floor(Math.random() * 2 ** 31)), settings: defaultSettings(), savedAt: Date.now() };
 }
 
 function run(data: SaveData): void {
@@ -186,7 +189,8 @@ function frame(now: number): void {
       const { view, x, y } = locate(pointer.x, pointer.y);
       preview = { ability: abilities.aiming, at: toGrid(view, x, y) };
     }
-    renderer.draw(session.state, session.alpha, elapsed, hud.selectedSlot, preview);
+    guide.update(session.state, { selectedSlot: hud.selectedSlot, aiming: abilities.aiming }, events);
+    renderer.draw(session.state, session.alpha, elapsed, hud.selectedSlot, preview, guide.slot);
     canvas.style.cursor = abilities.aiming ? 'crosshair' : '';
     hud.update(session.state);
     abilities.update(session.state);

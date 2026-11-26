@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { describe, expect, it } from 'vitest';
-import type { BuyAmount, EnemyKind, SpecChoice, TowerKind } from '../../src/config/balance';
+import { GOLD, type BuyAmount, type EnemyKind, type SpecChoice, type TowerKind } from '../../src/config/balance';
 import { affordableLevels, buildCost, enemyGold, sellValue, upgradeCost } from '../../src/sim/economy';
 import { createEnemy } from '../../src/sim/enemies';
 import { createState, refreshDamage, step } from '../../src/sim/sim';
@@ -62,11 +62,11 @@ describe('formulas', () => {
 });
 
 describe('buying', () => {
-  it('starts with 60 gold and charges 50, 80, 128', () => {
+  it('starts with the starting gold and charges 50, 80, 128', () => {
     const s = createState(1);
-    expect(s.gold.toNumber()).toBe(60);
+    expect(s.gold.toNumber()).toBe(GOLD.start);
     expect(step(s, [build(0), build(1)]).results).toEqual([{ ok: true }, { ok: false, reason: 'Not enough gold' }]);
-    expect(s.gold.toNumber()).toBe(10);
+    expect(s.gold.toNumber()).toBe(GOLD.start - 50);
     expect(s.towers).toHaveLength(1);
     s.gold = new Decimal(208);
     expect(step(s, [build(1), build(2, 'tesla')]).results).toEqual([{ ok: true }, { ok: true }]);
@@ -146,7 +146,7 @@ describe('selling', () => {
     const s = createState(1);
     for (let i = 0; i < 5; i++) {
       expect(step(s, [build(0), sell(0)]).results).toEqual([{ ok: true }, { ok: true }]);
-      expect(s.gold.toNumber()).toBe(60);
+      expect(s.gold.toNumber()).toBe(GOLD.start);
     }
     step(s, [build(0)]);
     s.gold = new Decimal(22);

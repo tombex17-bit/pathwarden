@@ -88,6 +88,8 @@ export interface State {
   owned: { autoUpgrade: boolean; autoCast: boolean };
   /** Switches for purchased automation. */
   options: { autoUpgrade: boolean; autoCast: boolean };
+  /** A brand-new game's first wave waits until a tower stands, so reading the screen costs nothing. */
+  holdForTower: boolean;
 }
 
 export type OptionName = 'autoAdvance' | 'autoUpgrade' | 'autoCast';

@@ -10,7 +10,7 @@ import type { Command, State } from '../../src/sim/types';
 import { addTower, run, until } from './helpers';
 
 const NOW = 1_800_000_000_000;
-const SETTINGS: Settings = { speed: 2, volume: 0.35, muted: true };
+const SETTINGS: Settings = { speed: 2, volume: 0.35, muted: true, guide: 3 };
 
 /** A busy game in the middle of a wave, with every kind of content in play. */
 function busy(): State {
@@ -152,6 +152,8 @@ describe('bad saves are refused as corrupt', () => {
     ['volume above 1', (x) => { x.settings.volume = 1.5; }],
     ['volume missing', (x) => { delete x.settings.volume; }],
     ['muted not a boolean', (x) => { x.settings.muted = 'yes'; }],
+    ['guide out of range', (x) => { x.settings.guide = 16; }],
+    ['holding wave 1 with a tower standing', (x) => { x.state.holdForTower = true; }],
     ['bad timestamp', (x) => { x.savedAt = 'yesterday'; }],
     ['negative Cores', (x) => { x.state.cores = [-1, 0]; }],
     ['short layout', (x) => { x.state.layout = [null]; }],
@@ -174,7 +176,7 @@ describe('versions', () => {
     const s = busy();
     const v1 = edited((x) => {
       x.v = 1;
-      for (const k of ['cores', 'prestiges', 'clearedThisRun', 'layout', 'owned', 'options']) delete x.state[k];
+      for (const k of ['cores', 'prestiges', 'clearedThisRun', 'layout', 'owned', 'options', 'holdForTower']) delete x.state[k];
     }, s);
     const data = load(v1);
     expect(data.state).toEqual({ ...s, clearedThisRun: s.bestRun });
@@ -188,10 +190,11 @@ describe('versions', () => {
       delete x.settings;
       delete x.state.history;
       delete x.state.waveGold;
-      for (const k of ['cores', 'prestiges', 'clearedThisRun', 'layout', 'owned', 'options']) delete x.state[k];
+      for (const k of ['cores', 'prestiges', 'clearedThisRun', 'layout', 'owned', 'options', 'holdForTower']) delete x.state[k];
     }, s);
     const data = load(v0);
-    expect(data.settings).toEqual({ speed: 1, volume: 0.6, muted: false });
+    expect(data.settings).toEqual({ speed: 1, volume: 0.6, muted: false, guide: 15 });
+    expect(data.state.holdForTower).toBe(false);
     expect(data.state.history).toEqual([]);
     expect(data.state.waveGold.toNumber()).toBe(0);
     expect(data.state.gold.eq(s.gold)).toBe(true);
@@ -200,8 +203,15 @@ describe('versions', () => {
 });
 
 it('version 2 saves get sound on at the default volume', () => {
-  const v2 = edited((x) => { x.v = 2; x.settings = { speed: 3 }; });
-  expect(load(v2).settings).toEqual({ speed: 3, volume: 0.6, muted: false });
+  const v2 = edited((x) => { x.v = 2; x.settings = { speed: 3 }; delete x.state.holdForTower; });
+  expect(load(v2).settings).toEqual({ speed: 3, volume: 0.6, muted: false, guide: 15 });
+});
+
+it('version 3 saves skip the guide and the first-wave hold', () => {
+  const v3 = edited((x) => { x.v = 3; delete x.settings.guide; delete x.state.holdForTower; });
+  const data = load(v3);
+  expect(data.settings.guide).toBe(15);
+  expect(data.state.holdForTower).toBe(false);
 });
 
 describe('export and import', () => {

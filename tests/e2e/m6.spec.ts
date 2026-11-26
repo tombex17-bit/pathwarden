@@ -256,7 +256,7 @@ test('sound: nothing before input, mute and volume obeyed and kept after reload'
   await expect(page.locator('#volume')).toHaveValue('35');
   await expect(page.locator('#volume-text')).toHaveText('35%');
   const settings = await page.evaluate(() => JSON.parse(localStorage.getItem('tdi.save')!).settings);
-  expect(settings).toEqual({ speed: 1, volume: 0.35, muted: false });
+  expect(settings).toMatchObject({ speed: 1, volume: 0.35, muted: false });
   expect(errors).toEqual([]);
 });
 
@@ -312,8 +312,8 @@ test('loads and plays with no network after the first visit', async ({ page, con
   await page.waitForTimeout(300);
   await context.setOffline(true);
   await page.reload();
-  // The page shows 60 gold until the saved game starts.
-  await expect(page.locator('#gold')).not.toHaveText('60');
+  // The page shows 70 gold until the saved game starts.
+  await expect(page.locator('#gold')).not.toHaveText('70');
   await clickSlot(page, 0);
   await expect(page.locator('#panel-title')).toHaveText('Bolt, level 1');
   // A new tab works offline too.

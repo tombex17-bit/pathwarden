@@ -27,8 +27,16 @@ export function createState(seed: number, wave = 1): State {
     waveGold: new Decimal(0), history: [],
     cores: new Decimal(0), prestiges: 0, clearedThisRun: 0, layout: SLOTS.map(() => null),
     owned: { autoUpgrade: false, autoCast: false }, options: { autoUpgrade: false, autoCast: false },
+    holdForTower: false,
   };
   startWave(state, []);
+  return state;
+}
+
+/** A brand-new game: like `createState`, but wave 1 waits for the first tower. */
+export function createNewGame(seed: number): State {
+  const state = createState(seed);
+  state.holdForTower = true;
   return state;
 }
 
@@ -48,6 +56,10 @@ export function step(state: State, commands: readonly Command[] = []): StepResul
   if (state.restartTicks > 0) {
     if (--state.restartTicks === 0) startWave(state, events);
     return { events, results };
+  }
+  if (state.holdForTower) {
+    if (state.towers.length === 0) return { events, results };
+    state.holdForTower = false;
   }
 
   spawnDue(state);

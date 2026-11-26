@@ -1,6 +1,6 @@
 import Decimal from 'break_infinity.js';
 import { describe, expect, it } from 'vitest';
-import { ABILITY_KINDS, type PermanentKind } from '../../src/config/balance';
+import { ABILITY_KINDS, GOLD, type PermanentKind } from '../../src/config/balance';
 import { idleRate } from '../../src/sim/idle';
 import { coresFor, headStartWave, permanentCost, startingGold } from '../../src/sim/prestige';
 import { createState, step } from '../../src/sim/sim';
@@ -48,7 +48,7 @@ describe('formulas', () => {
   });
 
   it('a run starts with 20 x N(s) x baseGold(s) x 1.3^G, except the first', () => {
-    expect(startingGold(1, 0, 0).toNumber()).toBe(60);
+    expect(startingGold(1, 0, 0).toNumber()).toBe(GOLD.start);
     near(startingGold(65, 0, 1), 20 * 18 * 2 * 1.065 ** 64);
     near(startingGold(65, 3, 7), 20 * 18 * 2 * 1.065 ** 64 * 1.3 ** 3);
     near(startingGold(1, 0, 1), 20 * 12 * 2);
@@ -93,7 +93,7 @@ describe('prestige conditions', () => {
 
 describe('prestige', () => {
   // Every state field, sorted into what a prestige keeps and what it resets.
-  const KEPT = ['seed', 'tick', 'power', 'greed', 'attempt', 'bestEver', 'autoAdvance', 'nextEnemyId', 'kills', 'owned', 'options'] as const;
+  const KEPT = ['seed', 'tick', 'power', 'greed', 'attempt', 'bestEver', 'autoAdvance', 'nextEnemyId', 'kills', 'owned', 'options', 'holdForTower'] as const;
   const RESET = [
     'gold', 'wave', 'waveTick', 'lives', 'restartTicks', 'bestRun', 'spawns', 'enemies', 'towers', 'cooldowns', 'zones',
     'waveGold', 'history', 'cores', 'prestiges', 'clearedThisRun', 'layout',

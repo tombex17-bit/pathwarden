@@ -43,6 +43,7 @@ All cooldowns and durations are in game seconds unless stated otherwise.
 - Wave `w` is cleared if it ends with lives above 0. Then `w` increases by 1 if **Auto-advance** is on; otherwise the same wave repeats. Auto-advance defaults to on **[D]**.
 - **Losing [A]:** at 0 lives the field empties at once, `w = max(1, w - 5)`, and a new wave starts after 2 game seconds. Gold, towers, levels and cooldowns stay. The wave is not cleared.
 - Every 10th wave adds one boss at 5 game seconds, alongside the normal slots.
+- **First wave (after release):** a brand-new game holds wave 1 until the first tower is built, so reading the screen never costs lives. Games that existed before are not held.
 
 ### Formulas
 
@@ -71,7 +72,7 @@ Each slot picks an unlocked type by weight with a generator seeded by `(runSeed,
 ## 5. Towers
 
 - Building costs `50 * 1.6^k`, where `k` is the number of towers built now (so 50, 80, 128, ...). A new tower is level 1.
-- First-run starting gold is 60.
+- First-run starting gold is 70 (60 before the first-waves change, section 18).
 - Upgrade from level `L`: `20 * 1.09^L`. Levels are unlimited.
 - Damage per hit: `base * L * 2^floor(L/25) * 1.4^P`.
 - Selling refunds 100% of the price paid to build that tower and 70% of its upgrades, and frees the slot. A full build refund means a player can never be left unable to afford the first tower.
@@ -209,7 +210,7 @@ Values must work past the 1.8e308 limit of normal numbers.
 
 - Landscape and desktop: map left, control panel right (280-360 px). Portrait: map on top at full width, panel below.
 - Must work from 360x640 to 1920x1080 without page scroll; the panel itself may scroll. Rotation keeps all state.
-- Top bar: wave, lives, gold, Cores, speed, menu. Panel: tower list, or the selected tower. Ability bar always visible, within thumb reach in portrait.
+- Top bar: wave, lives, gold, Cores, speed, menu. Panel: tower list, or the selected tower. With nothing selected, the panel lists the enemies left in the wave (section 18). Ability bar always visible, within thumb reach in portrait.
 - Portrait slots are small, so a tap selects the nearest slot within 22 px.
 - Menu: prestige, permanent upgrades, export/import, sound, auto-advance, reset (confirmed).
 
@@ -291,3 +292,13 @@ Full visual design, layouts, sound, installable offline app.
 ## 17. Out of scope for version 1
 
 Multiplayer, accounts, cloud saves, leaderboards, payments, ads, analytics, extra maps, generated paths, player-built mazes, hero tower, tapping enemies, tower boosts, manual wave calls, native apps, music, translation (English only), custom art or purchased assets, cheat prevention.
+
+## 18. First waves (after release)
+
+Added after the user asked whether the game can be beaten without losing lives, with doubts about wave 1.
+
+- **Finding:** with perfect play (building at second 0), waves 1-15 could be cleared without losing a life. But wave 1 started the moment the game opened. A Bolt built 10 s late lost 5-9 lives and 15 s late lost the wave; even a guided player acting every 3 s lost 1 life on wave 1 without Meteor.
+- **Changes:** wave 1 waits for the first tower (section 4), and starting gold is 70. With 70 gold, a Bolt in 10 of the 12 slots holds wave 1 when upgraded; only the two far corner slots (8 and 9) leak 1-2.
+- **Guide:** for new games, a box at the top of the panel walks through four steps, highlighting the slot or button to press: build a Bolt in slot 5, upgrade once it is affordable, use Meteor once 3 enemies are on the path, then build a second tower (slot 0, then 2). It ends when all four are done, when wave 3 is cleared, or with Skip guide. Progress is kept in the save (version 4); games from before this change skip it.
+- **Enemy list:** with nothing selected, the panel shows the enemies left in the wave (on the field and still to come): shape, name, count, HP, gold, speed and trait.
+- **Check:** `tests/unit/flawless.test.ts` (part of `npm run check`) plays brand-new games on 5 seeds the way the guide teaches and fails if any life is lost: acting every 3 s through wave 15 and the first boss, with and without Meteor, and a slow player who reads for 2 minutes and then acts every 8 s through wave 3. `tests/e2e/guide.spec.ts` covers the hold, the guide's steps, skipping, reloads and the enemy list.

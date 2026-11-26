@@ -57,7 +57,9 @@ export class Renderer {
     }
   }
 
-  draw(state: State, alpha: number, frameMs: number, selectedSlot: number | undefined, preview?: Preview): void {
+  draw(
+    state: State, alpha: number, frameMs: number, selectedSlot: number | undefined, preview?: Preview, guideSlot?: number,
+  ): void {
     this.resize();
     const { ctx, view } = this;
     for (const fx of this.effects) fx.ageMs += frameMs;
@@ -79,6 +81,7 @@ export class Renderer {
     this.drawPath();
     this.drawZones(state, px);
     this.drawSlots(state, selectedSlot, px);
+    if (guideSlot !== undefined) this.drawGuide(guideSlot, px);
     this.drawEnemies(state, alpha, px);
     this.drawEffects(px);
     if (preview) this.drawRing(preview.ability, preview.at, px);
@@ -161,6 +164,17 @@ export class Renderer {
       ctx.arc(at.x, at.y, towerStats(tower.kind, tower.spec).range, 0, Math.PI * 2);
       ctx.stroke();
     }
+  }
+
+  /** A ring around the slot the guide points at. */
+  private drawGuide(slot: number, px: number): void {
+    const { ctx } = this;
+    const at = SLOTS[slot]!;
+    ctx.strokeStyle = COLORS.gold;
+    ctx.lineWidth = 2 * px;
+    ctx.beginPath();
+    ctx.arc(at.x, at.y, SLOT_RADIUS + 0.16, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   private drawEnemies(state: State, alpha: number, px: number): void {

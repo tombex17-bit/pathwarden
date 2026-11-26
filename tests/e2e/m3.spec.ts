@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { fitView, toScreen } from '../../src/render/view';
-import { SIZES, clickSlot, collectErrors, pageScrolls } from './helpers';
+import { createState } from '../../src/sim/sim';
+import { SIZES, clickSlot, collectErrors, pageScrolls, seedSave } from './helpers';
+import { save } from './scenes';
+
+// Wave 1 runs with no tower here, so Meteor has targets; a brand-new game would wait for a tower.
+test.beforeEach(async ({ page }) => { await seedSave(page, save(createState(1))); });
 
 async function mapPoint(page: Page, x: number, y: number): Promise<{ x: number; y: number }> {
   const box = (await page.locator('#map').boundingBox())!;
