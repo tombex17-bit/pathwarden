@@ -9,8 +9,8 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-    <script type="module" crossorigin src="./assets/index-D3xSZENJ.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CRwRosqB.css">
+    <script type="module" crossorigin src="./assets/index-D2lJ1hn-.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BaZ5Y5qC.css">
   </head>
   <body>
     <div id="game">
@@ -41,6 +41,7 @@
           <p id="guide-text"></p>
           <button id="guide-skip" type="button">Skip guide</button>
         </div>
+        <button id="call-wave" type="button" class="primary" hidden></button>
         <section id="foes" aria-labelledby="foes-title">
           <h3 id="foes-title"></h3>
           <div id="foe-list"></div>
@@ -49,10 +50,16 @@
         <p id="panel-text"></p>
         <div id="shop" hidden></div>
         <div id="tower" hidden>
+          <p id="tower-extra"></p>
           <div id="specs" hidden></div>
           <div id="amounts" role="group" aria-label="Levels to buy"></div>
           <button id="upgrade" type="button" class="primary"></button>
           <button id="sell" type="button"></button>
+          <div id="merge" hidden>
+            <h3>Merge</h3>
+            <p id="merge-text"></p>
+            <div id="merge-list"></div>
+          </div>
         </div>
         <label class="option"><input id="auto-advance" type="checkbox" checked /> Auto-advance waves</label>
       </aside>
@@ -80,6 +87,11 @@
         <div id="permanent"></div>
         <label class="option"><input id="auto-upgrade" type="checkbox" disabled /> Auto-upgrade</label>
         <label class="option"><input id="auto-cast" type="checkbox" disabled /> Auto-cast</label>
+      </section>
+      <section>
+        <h3>Map</h3>
+        <p id="map-text"></p>
+        <div id="maps"></div>
       </section>
       <section>
         <h3>Sound</h3>
