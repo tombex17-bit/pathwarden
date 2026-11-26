@@ -9,15 +9,15 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-    <script type="module" crossorigin src="./assets/index-Bmnbdrk8.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-YbdlxgQM.css">
+    <script type="module" crossorigin src="./assets/index-D3xSZENJ.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CRwRosqB.css">
   </head>
   <body>
     <div id="game">
       <header id="top">
         <span class="stat">Wave <b id="wave">1</b></span>
         <span class="stat">Lives <b id="lives">10</b></span>
-        <span class="stat">Gold <b id="gold">60</b></span>
+        <span class="stat">Gold <b id="gold">70</b></span>
         <span class="stat" id="best-stat">Best <b id="best">0</b></span>
         <span class="stat">Cores <b id="cores">0</b></span>
         <span id="controls">
@@ -37,6 +37,14 @@
       </main>
       <div id="abilities" role="toolbar" aria-label="Abilities"></div>
       <aside id="panel">
+        <div id="guide" role="status" hidden>
+          <p id="guide-text"></p>
+          <button id="guide-skip" type="button">Skip guide</button>
+        </div>
+        <section id="foes" aria-labelledby="foes-title">
+          <h3 id="foes-title"></h3>
+          <div id="foe-list"></div>
+        </section>
         <h2 id="panel-title">Build</h2>
         <p id="panel-text"></p>
         <div id="shop" hidden></div>
