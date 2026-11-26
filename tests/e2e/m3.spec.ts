@@ -23,7 +23,7 @@ async function expectCast(page: Page): Promise<void> {
 
 test('casts with the mouse', async ({ page }, info) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   for (const a of ['stasis', 'bounty', 'smite']) await expect(page.locator(`[data-ability=${a}]`)).toBeDisabled();
   await expect(page.locator('[data-ability=stasis] small')).toHaveText('Clear 10');
   await expectReady(page);
@@ -43,7 +43,7 @@ test('casts with the mouse', async ({ page }, info) => {
 
 test('selects with a key', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   await expectReady(page);
   await page.keyboard.press('2');
   await expect(page.locator('[data-ability=stasis]')).toHaveAttribute('aria-pressed', 'false');
@@ -57,7 +57,7 @@ test('selects with a key', async ({ page }) => {
 
 test('cancels by key, right-click, and choosing the ability again', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   await expectReady(page);
   const at = await mapPoint(page, 4, 1);
   const cancels = [
@@ -78,7 +78,7 @@ test('cancels by key, right-click, and choosing the ability again', async ({ pag
 
 test('a refused cast explains why, keeps aiming and spends nothing', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   await expectReady(page);
   await page.keyboard.press('1');
   // Below the map, in the empty part of the stage.
@@ -98,7 +98,7 @@ test.describe('touch', () => {
     test(`casts and builds by tapping (${name})`, async ({ page }, info) => {
       const errors = collectErrors(page);
       await page.setViewportSize({ width, height });
-      await page.goto('/');
+      await page.goto('./');
       await expectReady(page);
       const box = (await page.locator('#abilities').boundingBox())!;
       expect(box.y + box.height).toBeLessThanOrEqual(height);

@@ -14,7 +14,7 @@ for (const { name, width, height } of M6_SIZES) {
     test('early game and ability targeting', async ({ page }) => {
       const errors = collectErrors(page);
       await seedSave(page, save(early()));
-      await page.goto('/');
+      await page.goto('./');
       await expect(page.locator('#wave')).toHaveText('2');
       await page.waitForTimeout(800);
       await shot(page, `early-${name}`);
@@ -30,7 +30,7 @@ for (const { name, width, height } of M6_SIZES) {
     test('boss', async ({ page }) => {
       const errors = collectErrors(page);
       await seedSave(page, save(boss()));
-      await page.goto('/');
+      await page.goto('./');
       await expect(page.locator('#wave')).toHaveText('10');
       await page.waitForTimeout(500);
       await shot(page, `boss-${name}`);
@@ -40,7 +40,7 @@ for (const { name, width, height } of M6_SIZES) {
     test('prestige', async ({ page }) => {
       const errors = collectErrors(page);
       await seedSave(page, save(prestigeReady()));
-      await page.goto('/');
+      await page.goto('./');
       await page.locator('#menu-open').click();
       await page.locator('#prestige').click();
       await page.locator('#prestige-yes').scrollIntoViewIfNeeded();

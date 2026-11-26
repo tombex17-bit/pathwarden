@@ -5,7 +5,7 @@ for (const { name, width, height } of SIZES) {
   test(`builds a Bolt and kills a Grunt (${name})`, async ({ page }, info) => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width, height });
-    await page.goto('/');
+    await page.goto('./');
     await expect(page.locator('#wave')).toHaveText('1');
     await clickSlot(page, 0);
     await page.locator('[data-tower=bolt]').click();
@@ -21,7 +21,7 @@ for (const { name, width, height } of SIZES) {
 
 test('losing shows a message and restarts', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.locator('#banner')).toHaveText('Wave 1 lost. Back to wave 1.', { timeout: 45_000 });
   await expect(page.locator('#banner')).toBeVisible();
   await expect(page.locator('#banner')).toBeHidden({ timeout: 5_000 });
@@ -31,7 +31,7 @@ test('losing shows a message and restarts', async ({ page }) => {
 
 test('the next wave starts by itself', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   await clickSlot(page, 0);
   await page.locator('[data-tower=bolt]').click();
   await expect(page.locator('#wave')).toHaveText('2', { timeout: 45_000 });

@@ -33,7 +33,7 @@ async function seed(page: Page, s: State): Promise<void> {
 test('prestige: shown beforehand, confirmed, then Cores buy upgrades and automation rebuilds', async ({ page }, info) => {
   const errors = collectErrors(page);
   await seed(page, ready());
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.locator('#cores')).toHaveText('2');
   await page.locator('#menu-open').click();
   await expect(page.locator('#prestige-text')).toHaveText('Prestige now for 12 Cores and start again from wave 55. Best wave this run: 104.');
@@ -88,7 +88,7 @@ for (const { name, width, height } of SIZES) {
     const errors = collectErrors(page);
     await seed(page, ready());
     await page.setViewportSize({ width, height });
-    await page.goto('/');
+    await page.goto('./');
     await expect(page.locator('#cores')).toHaveText('2');
     const overflow = await page.locator('#top').evaluate((e) => e.scrollWidth - e.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);

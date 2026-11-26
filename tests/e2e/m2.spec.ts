@@ -3,7 +3,7 @@ import { SIZES, clickSlot, collectErrors, pageScrolls } from './helpers';
 
 test('buys, upgrades and sells with gold', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   await clickSlot(page, 0);
   await expect(page.locator('[data-tower]')).toHaveCount(5);
   await expect(page.locator('[data-tower=bolt] .price')).toHaveText('50');
@@ -35,7 +35,7 @@ for (const { name, width, height } of SIZES) {
   test(`shop fits and is reachable (${name})`, async ({ page }, info) => {
     const errors = collectErrors(page);
     await page.setViewportSize({ width, height });
-    await page.goto('/');
+    await page.goto('./');
     await clickSlot(page, 0);
     await page.screenshot({ path: info.outputPath(`shop-${name}.png`) });
     await page.locator('[data-tower=tesla]').scrollIntoViewIfNeeded();

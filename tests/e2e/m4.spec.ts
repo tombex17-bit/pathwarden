@@ -84,13 +84,13 @@ test('pauses while really hidden, pays on return, and saves', async ({ baseURL }
 
 test('pays for closed time on load, capped at 8 h', async ({ page }) => {
   await seed(page, { [MAIN_KEY]: saved(game(), 9 * HOUR) });
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.locator('#away-text')).toHaveText(/^You were away for 9 h 0 min and earned 14\.40M gold\.$/);
 });
 
 test('a reload keeps the game and continues the same wave', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   await clickSlot(page, 0);
   await page.locator('[data-tower=bolt]').click();
   await page.locator('#speed').click();
@@ -111,7 +111,7 @@ test('a reload keeps the game and continues the same wave', async ({ page }) => 
 });
 
 test('speed cycles 1x, 2x, 3x', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('./');
   for (const label of ['1x', '2x', '3x', '1x']) {
     await expect(page.locator('#speed')).toHaveText(label);
     await page.locator('#speed').click();
@@ -120,7 +120,7 @@ test('speed cycles 1x, 2x, 3x', async ({ page }) => {
 
 test('exports, imports, and refuses bad text', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.locator('#gold')).toHaveText('60');
   await page.locator('#menu-open').click();
   const own = await page.locator('#export-text').inputValue();
@@ -160,7 +160,7 @@ test('exports, imports, and refuses bad text', async ({ page }) => {
 
 test('reset needs confirming', async ({ page }) => {
   await seed(page, { [MAIN_KEY]: saved(game()) });
-  await page.goto('/');
+  await page.goto('./');
   await page.locator('#menu-open').click();
   await page.locator('#reset').click();
   await page.locator('#reset-no').click();
@@ -174,7 +174,7 @@ test('reset needs confirming', async ({ page }) => {
 test('a second tab never saves, and takes over when the first closes', async ({ context }) => {
   const first = await context.newPage();
   await seed(first, { [MAIN_KEY]: saved(game()) });
-  await first.goto('/');
+  await first.goto('./');
   await expect(first.locator('#wave')).toHaveText('30');
   const second = await context.newPage();
   const errors = collectErrors(second);
@@ -187,7 +187,7 @@ test('a second tab never saves, and takes over when the first closes', async ({ 
       original.call(this, k, v);
     };
   });
-  await second.goto('/');
+  await second.goto('./');
   await expect(second.locator('#blocker-title')).toHaveText('Running in another tab');
   await expect(second.locator('#blocker-menu')).toBeHidden();
   // Longer than the 10 s between saves, plus the events that also save.
@@ -205,14 +205,14 @@ test('a second tab never saves, and takes over when the first closes', async ({ 
 
 test('a damaged save falls back to the backup with a notice', async ({ page }) => {
   await seed(page, { [MAIN_KEY]: 'damaged', [BACKUP_KEY]: saved(game()) });
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.locator('#wave')).toHaveText('30');
   await expect(page.locator('#warning')).toHaveText('The last save was damaged, so an earlier one was loaded.');
 });
 
 test('two damaged saves overwrite nothing and offer a choice', async ({ page }, info) => {
   await seed(page, { [MAIN_KEY]: 'bad', [BACKUP_KEY]: 'worse' });
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.locator('#blocker-title')).toHaveText('Your save is damaged');
   await page.waitForTimeout(11_000);
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
@@ -233,7 +233,7 @@ test('works with a warning when storage is unavailable', async ({ page }) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, 'localStorage', { get() { throw new DOMException('denied', 'SecurityError'); } });
   });
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.locator('#warning')).toContainText('progress will not be kept');
   await clickSlot(page, 0);
   await page.locator('[data-tower=bolt]').click();
@@ -244,7 +244,7 @@ test('works with a warning when storage is unavailable', async ({ page }) => {
 test('works with a warning when Web Locks are missing', async ({ page }) => {
   const errors = collectErrors(page);
   await page.addInitScript(() => Object.defineProperty(navigator, 'locks', { value: undefined }));
-  await page.goto('/');
+  await page.goto('./');
   await expect(page.locator('#warning')).toContainText('Use only one tab');
   await expect(page.locator('#gold')).toHaveText('60');
   expect(errors).toEqual([]);
@@ -256,7 +256,7 @@ test('specializing works, and all four abilities can be cast', async ({ page }) 
   s.bestEver = 40;
   s.gold = new Decimal(1e9);
   await seed(page, { [MAIN_KEY]: saved(s) });
-  await page.goto('/');
+  await page.goto('./');
   // Abilities first: once the strong tower stands, enemies die as they appear and Meteor has no target.
   await page.waitForTimeout(1000);
   const box = (await page.locator('#map').boundingBox())!;
@@ -298,7 +298,7 @@ for (const { name, width, height } of SIZES) {
     s.bestEver = s.bestRun = 1233;
     await seed(page, { [MAIN_KEY]: saved(s, 3 * HOUR) });
     await page.setViewportSize({ width, height });
-    await page.goto('/');
+    await page.goto('./');
     await expect(page.locator('#away')).toBeVisible();
     await page.screenshot({ path: info.outputPath(`away-${name}.png`) });
     expect(await pageScrolls(page)).toBe(false);
