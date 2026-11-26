@@ -54,7 +54,7 @@ describe('formulas', () => {
   ])('%s has HP x%f and gold x%f', (kind, hp, gold) => {
     for (const wave of [1, 10, 73]) {
       const n = 12 + Math.min(12, Math.floor(wave / 10));
-      near(10 ** log10EnemyHp(wave, kind), 14 * 1.09 ** (wave - 1) * hp);
+      near(10 ** log10EnemyHp(wave, kind), 14 * 1.095 ** (wave - 1) * hp);
       near(enemyGold(wave, kind, 0), 2 * 1.065 ** (wave - 1) * gold * (kind === 'boss' ? n : 1));
       near(enemyGold(wave, kind, 4), 2 * 1.065 ** (wave - 1) * gold * (kind === 'boss' ? n : 1) * 1.3 ** 4);
     }
@@ -209,9 +209,9 @@ describe('damage is refreshed', () => {
 
   it('for new enemies when the wave changes', () => {
     const s = emptyField(5);
-    near(10 ** createEnemy(s, 'grunt').log10MaxHp, 14 * 1.09 ** 4);
+    near(10 ** createEnemy(s, 'grunt').log10MaxHp, 14 * 1.095 ** 4);
     s.wave = 6;
-    near(10 ** createEnemy(s, 'grunt').log10MaxHp, 14 * 1.09 ** 5);
+    near(10 ** createEnemy(s, 'grunt').log10MaxHp, 14 * 1.095 ** 5);
   });
 });
 

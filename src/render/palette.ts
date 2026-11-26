@@ -15,4 +15,6 @@ export const COLORS = {
   gold: '#FFD66B',
   cores: '#57E0B5',
   success: '#6BD68A',
+  /** The Warden uses the success green, so it stands apart from every tower. */
+  warden: '#6BD68A',
 } as const;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SLOTS } from '../../src/config/map';
+import { MAPS } from '../../src/config/map';
 import { FrameStepper } from '../../src/platform/frame-stepper';
 import { fitView, slotAt, toScreen } from '../../src/render/view';
 
@@ -33,11 +33,11 @@ describe('view', () => {
 
   it('finds every slot on a 360 px wide phone, within 22 px', () => {
     const view = fitView(360, 202.5);
-    SLOTS.forEach((slot, i) => {
+    MAPS.switchback.slots.forEach((slot, i) => {
       const s = toScreen(view, slot);
-      expect(slotAt(view, s.x + 21, s.y)).toBe(i);
+      expect(slotAt(view, s.x + 21, s.y, 'switchback')).toBe(i);
     });
-    const first = toScreen(view, SLOTS[0]!);
-    expect(slotAt(view, first.x, first.y + 23)).toBeUndefined();
+    const first = toScreen(view, MAPS.switchback.slots[0]);
+    expect(slotAt(view, first.x, first.y + 23, 'switchback')).toBeUndefined();
   });
 });

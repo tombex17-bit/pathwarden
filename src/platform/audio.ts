@@ -1,7 +1,7 @@
 import type { TowerKind } from '../config/balance';
 import type { Sound } from './sounds';
 
-const SHOT_HZ: Readonly<Record<TowerKind, number>> = { bolt: 880, cannon: 196, frost: 1320, beam: 660, tesla: 1760 };
+const SHOT_HZ: Readonly<Record<TowerKind, number>> = { bolt: 880, cannon: 196, frost: 1320, beam: 660, tesla: 1760, warden: 990 };
 const ABILITY_HZ = { meteor: [330, 82], stasis: [1200, 600], bounty: [880, 1760], smite: [1500, 110] } as const;
 
 interface Tone { hz: number; toHz?: number; ms: number; wave?: OscillatorType; gain?: number; delayMs?: number }
@@ -85,5 +85,9 @@ function tones(sound: Sound): Tone[] {
       return [{ hz: 110, ms: 300, wave: 'sawtooth', gain: 0.3 }, { hz: 82, ms: 500, wave: 'sawtooth', gain: 0.3, delayMs: 320 }];
     case 'prestige':
       return [523, 659, 784, 1047].map((hz, i) => ({ hz, ms: 180, gain: 0.25, delayMs: i * 110 }));
+    case 'tap':
+      return [{ hz: 1400, toHz: 700, ms: 30, wave: 'square', gain: 0.1 }];
+    case 'rank':
+      return [{ hz: 784, ms: 90, gain: 0.2 }, { hz: 1175, ms: 140, gain: 0.2, delayMs: 90 }];
   }
 }

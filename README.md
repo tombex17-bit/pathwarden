@@ -1,6 +1,6 @@
 # Pathwarden
 
-An endless 2D tower defense game that keeps earning while you are away. Build and upgrade towers on a fixed path, cast abilities, and prestige for permanent upgrades. It runs in the browser on desktop and phone, and can be installed and played offline.
+An endless 2D tower defense game that keeps earning while you are away. Build, upgrade and merge towers on three maps, lead the Warden hero, tap enemies, cast abilities, call waves early, and prestige for permanent upgrades. It runs in the browser on desktop and phone, and can be installed and played offline.
 
 **Play:** https://tombex17-bit.github.io/pathwarden/
 

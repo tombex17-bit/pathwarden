@@ -1,4 +1,5 @@
 import { PERMANENT, PERMANENT_KINDS } from '../config/balance';
+import { MAPS, MAP_IDS } from '../config/map';
 import type { Decoded, SaveData } from '../platform/save';
 import type { Settings } from '../platform/settings';
 import type { Send } from './ability-bar';
@@ -46,6 +47,16 @@ export class Menu {
     el.append(create('span', '', PERMANENT[kind].name), price, create('small', '', PERMANENT[kind].text));
     byId('permanent').append(el);
     return { kind, el, price };
+  });
+
+  private readonly maps = MAP_IDS.map((map) => {
+    const el = button(() => this.send({ type: 'setMap', map }));
+    el.classList.add('map-choice');
+    el.dataset.map = map;
+    const note = create('small');
+    el.append(create('span', '', MAPS[map].name), create('small', '', MAPS[map].text), note);
+    byId('maps').append(el);
+    return { map, el, note };
   });
 
   get isOpen(): boolean {
@@ -120,6 +131,15 @@ export class Menu {
       ? `${blocker}. Best wave this run: ${state.bestRun}. Best ever: ${state.bestEver}.`
       : `Prestige now for ${formatNumber(coresFor(state.bestRun))} Cores and start again from wave ${headStartWave(state.bestEver)}. Best wave this run: ${state.bestRun}.`);
     setText(byId('cores-text'), `You have ${formatNumber(state.cores)} Cores.`);
+    setText(byId('map-text'), state.nextMap === state.map
+      ? `Playing on ${MAPS[state.map].name}. A new map starts with the next wave; towers keep their slot numbers.`
+      : `Switching to ${MAPS[state.nextMap].name} when the next wave starts.`);
+    for (const { map, el, note } of this.maps) {
+      const locked = state.bestEver < MAPS[map].unlockWave;
+      el.disabled = locked;
+      el.setAttribute('aria-pressed', String(state.nextMap === map));
+      setText(note, locked ? `Clear wave ${MAPS[map].unlockWave} to unlock` : map === state.map ? 'Current map' : map === state.nextMap ? 'Next wave' : 'Unlocked');
+    }
     for (const { kind, el, price } of this.upgrades) {
       const def = PERMANENT[kind];
       const owned = (kind === 'autoUpgrade' || kind === 'autoCast') && state.owned[kind];

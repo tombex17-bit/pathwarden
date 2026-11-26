@@ -1,10 +1,15 @@
 import Decimal from 'break_infinity.js';
 import {
-  BUY_AMOUNTS, ENEMIES, SPEC_LEVEL, TOWERS, TOWER_KINDS, type BuyAmount, type EnemyKind, type SpecChoice, type TowerKind,
+  BUY_AMOUNTS, ENEMIES, HERO, MERGE, RANKS, SPEC_LEVEL, TOWERS, TOWER_KINDS,
+  type BuyAmount, type EnemyKind, type SpecChoice, type TowerKind,
 } from '../config/balance';
+import { MAPS } from '../config/map';
 import { COLORS } from '../render/palette';
 import { fillTower, traceEnemy } from '../render/shapes';
 import { buildCost, canAfford, levelsFor, sellValue, upgradeCost } from '../sim/economy';
+import { canCallWave } from '../sim/sim';
+import { rankOf } from '../sim/stats';
+import { builtTowers, heroOf, isHero } from '../sim/towers';
 import { towerStats } from '../sim/stats';
 import type { Command, SimEvent, State, Tower } from '../sim/types';
 import { button, byId, create, setText } from './dom';
@@ -43,6 +48,11 @@ function enemyIcon(kind: EnemyKind): HTMLCanvasElement {
   return icon;
 }
 
+const TIER_NAMES = ['', '', ' II', ' III'];
+
+/** A tower's name with its tier, such as "Bolt II". */
+export const towerName = (t: Tower): string => `${TOWERS[t.kind].name}${TIER_NAMES[t.tier] ?? ''}`;
+
 const oneDecimal = (n: number): string => String(Math.round(n * 10) / 10);
 const CHOICES: readonly SpecChoice[] = ['a', 'b'];
 
@@ -67,6 +77,21 @@ export class Hud {
   private readonly autoAdvance = byId<HTMLInputElement>('auto-advance');
   private readonly foes = byId('foes');
   private foesShown = '';
+  private readonly callWave = byId<HTMLButtonElement>('call-wave');
+  private readonly extra = byId('tower-extra');
+  private readonly merge = byId('merge');
+  private mergeShown = '';
+
+  private readonly heroItem = (() => {
+    const el = button(() => this.withSlot((slot) => this.send({ type: 'placeHero', slot })));
+    el.classList.add('buy');
+    el.id = 'place-hero';
+    const name = create('span');
+    const price = create('span', 'price');
+    el.append(towerIcon('warden'), name, price, create('small', '', TOWERS.warden.text));
+    this.shop.append(el);
+    return { el, name, price };
+  })();
 
   private readonly shopItems = TOWER_KINDS.map((kind) => {
     const el = button(() => this.withSlot((slot) => this.send({ type: 'build', slot, tower: kind })));
@@ -104,6 +129,11 @@ export class Hud {
     this.autoAdvance.addEventListener('change', () => {
       send({ type: 'setOption', option: 'autoAdvance', value: this.autoAdvance.checked });
     });
+    this.callWave.addEventListener('click', () => send({ type: 'callWave' }));
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || document.querySelector('dialog[open]')) return;
+      if (e.key === 'n' || e.key === 'N') send({ type: 'callWave' });
+    });
   }
 
   onEvents(events: readonly SimEvent[]): void {
@@ -113,6 +143,13 @@ export class Hud {
         this.selectedSlot = undefined;
         say(`Prestige: +${formatNumber(e.cores)} Cores. New run from wave ${e.wave}.`);
       }
+      if (e.type === 'waveClear' && e.wave === HERO.unlockWave) say('The Warden is ready: pick an empty slot to place your hero.', 5000);
+      for (const map of Object.values(MAPS)) {
+        if (e.type === 'waveClear' && map.unlockWave > 0 && e.wave === map.unlockWave) say(`New map: ${map.name}. Pick it in the menu.`, 5000);
+      }
+      if (e.type === 'mapChange') say(`Now on ${MAPS[e.map].name}.`);
+      if (e.type === 'merge') say(`Merged into ${TOWERS[e.kind].name}${TIER_NAMES[e.tier] ?? ''}.`);
+      if (e.type === 'rankUp' && e.kind !== 'warden') say(`${TOWERS[e.kind].name} in slot ${e.slot + 1} reached rank ${e.rank}.`);
     }
   }
 
@@ -136,6 +173,9 @@ export class Hud {
         ? 'Wave 1 starts when you build your first tower. Pick a slot on the map.'
         : 'Pick a slot on the map to place a tower.');
     }
+    const callable = this.selectedSlot === undefined && canCallWave(state);
+    this.callWave.hidden = !callable;
+    if (callable) setText(this.callWave, `Next wave now (N)`);
     this.foes.hidden = this.selectedSlot !== undefined;
     if (!this.foes.hidden) this.showFoes(state);
   }
@@ -169,17 +209,26 @@ export class Hud {
   private showShop(state: State): void {
     setText(this.title, 'Empty slot');
     setText(this.text, 'Choose a tower.');
-    const cost = buildCost(state.towers.length);
+    const cost = buildCost(builtTowers(state));
     for (const { el, price } of this.shopItems) {
       setText(price, formatNumber(cost, 'up'));
       el.disabled = !canAfford(state.gold, cost);
     }
+    const { el, name, price } = this.heroItem;
+    el.hidden = state.bestEver < HERO.unlockWave;
+    const hero = heroOf(state);
+    setText(name, hero ? 'Move the Warden here' : 'Place the Warden here');
+    const wait = Math.ceil(state.heroMoveTicks / 30);
+    setText(price, hero && wait > 0 ? `${wait} s` : 'Free');
+    el.disabled = hero !== undefined && wait > 0;
   }
 
   private showTower(state: State, tower: Tower): void {
     const def = TOWERS[tower.kind];
     const stats = towerStats(tower.kind, tower.spec);
-    setText(this.title, `${def.name}, level ${tower.level}`);
+    setText(this.title, `${towerName(tower)}, level ${tower.level}`);
+    const hero = isHero(tower);
+    for (const el of [byId('amounts'), this.upgrade, this.sell]) el.hidden = hero;
     const damage = Decimal.pow10(tower.log10Damage);
     const shownDamage = damage.lt(10) ? oneDecimal(damage.toNumber()) : formatNumber(damage);
     const spec = tower.spec ? `${def.specs[tower.spec].name}. ` : '';
@@ -188,7 +237,15 @@ export class Hud {
       `${spec}${shownDamage} damage, ${oneDecimal(stats.hitsPerSecond)} hits per second, range ${oneDecimal(stats.range)}`,
     );
 
-    this.specs.hidden = tower.level < SPEC_LEVEL || tower.spec !== null;
+    const rank = rankOf(tower.kills);
+    const nextRank = RANKS.kills[rank];
+    const ranks = `Rank ${rank} of ${RANKS.kills.length}, ${tower.kills} kills${nextRank ? `; next rank at ${nextRank}` : ''}.`;
+    setText(this.extra, hero
+      ? `Boosts towers within ${HERO.auraRange} cells by ${Math.round((HERO.auraMult - 1) * 100)}%. Next level: ${formatNumber(state.heroXp)} of ${formatNumber(upgradeCost(tower.level), 'up')} experience, from half of all gold earned. To move it, pick an empty slot. ${ranks}`
+      : ranks);
+    this.showMerge(state, tower);
+
+    this.specs.hidden = hero || tower.level < SPEC_LEVEL || tower.spec !== null;
     for (const { choice, name, text } of this.specItems) {
       setText(name, def.specs[choice].name);
       setText(text, def.specs[choice].text);
@@ -200,5 +257,27 @@ export class Hud {
     setText(this.upgrade, `Upgrade +${count} for ${formatNumber(cost, 'up')}`);
     this.upgrade.disabled = !canAfford(state.gold, cost);
     setText(this.sell, `Sell for ${formatNumber(sellValue(tower))}`);
+  }
+
+  /** Towers this one can merge with, as buttons. Rebuilt only when something shown changes. */
+  private showMerge(state: State, tower: Tower): void {
+    this.merge.hidden = isHero(tower);
+    if (this.merge.hidden) return;
+    const partners = state.towers.filter((t) => t !== tower && t.kind === tower.kind && t.spec === tower.spec && t.tier === tower.tier);
+    const ready = (t: Tower): boolean => Math.min(t.level, tower.level) >= MERGE.minLevel && tower.tier < MERGE.maxTier;
+    const text = tower.tier >= MERGE.maxTier
+      ? 'Already at the highest tier.'
+      : `Two ${towerName(tower)} towers at level ${MERGE.minLevel} or more, with the same specialization, merge into one with x${MERGE.tierMult} damage and the higher level. The other slot is freed.`;
+    const key = `${tower.slot}|${text}|${partners.map((t) => `${t.slot}:${t.level}:${ready(t)}`).join()}`;
+    if (key === this.mergeShown) return;
+    this.mergeShown = key;
+    setText(byId('merge-text'), text);
+    byId('merge-list').replaceChildren(...partners.map((t) => {
+      const el = button(() => this.send({ type: 'merge', slot: tower.slot, from: t.slot }));
+      el.dataset.mergeFrom = String(t.slot);
+      el.textContent = `Merge with ${towerName(t)} in slot ${t.slot + 1} (level ${t.level})`;
+      el.disabled = !ready(t);
+      return el;
+    }));
   }
 }

@@ -88,10 +88,10 @@ describe('enemy list', () => {
     const rows = foeRows(s);
     expect(rows.map((r) => [r.kind, r.left])).toEqual([['grunt', 2], ['shielded', 1], ['boss', 1]]);
     const grunt = rows[0]!;
-    expect(grunt.hp.toNumber()).toBeCloseTo(14 * 1.09 ** 19, 6);
+    expect(grunt.hp.toNumber()).toBeCloseTo(14 * 1.095 ** 19, 6);
     expect(grunt.gold.toNumber()).toBeCloseTo(2 * 1.065 ** 19, 6);
     expect(grunt.speed).toBe(2);
-    expect(rows[2]!.hp.toNumber()).toBeCloseTo(140 * 1.09 ** 19, 4);
+    expect(rows[2]!.hp.toNumber()).toBeCloseTo(140 * 1.095 ** 19, 4);
   });
 
   it('is empty once the wave is beaten', () => {

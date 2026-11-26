@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { SLOTS } from '../../src/config/map';
+import { MAPS } from '../../src/config/map';
 import { fitView, toScreen } from '../../src/render/view';
 import { M6_SIZES, collectErrors, seedSave } from './helpers';
 import { boss, early, prestigeReady, save } from './scenes';
@@ -20,7 +20,7 @@ for (const { name, width, height } of M6_SIZES) {
       await shot(page, `early-${name}`);
       await page.locator('[data-ability=meteor]').click();
       const box = (await page.locator('#map').boundingBox())!;
-      const at = toScreen(fitView(box.width, box.height), { x: (SLOTS[0]!.x + 4) / 2, y: 1 });
+      const at = toScreen(fitView(box.width, box.height), { x: (MAPS.switchback.slots[0].x + 4) / 2, y: 1 });
       await page.mouse.move(box.x + at.x, box.y + at.y);
       await page.waitForTimeout(200);
       await shot(page, `targeting-${name}`);

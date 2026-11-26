@@ -1,6 +1,6 @@
 import type Decimal from 'break_infinity.js';
 import type { AbilityKind, BuyAmount, EnemyKind, PermanentKind, SpecChoice, TowerKind } from '../config/balance';
-import type { Point } from '../config/map';
+import type { MapId, Point } from '../config/map';
 
 export interface Slow { amount: number; untilTick: number }
 
@@ -41,6 +41,10 @@ export interface Tower {
   locks: RampLock[];
   buildPaid: Decimal;
   upgradesPaid: Decimal;
+  /** 1 when built; merging two towers of one tier makes the next. */
+  tier: number;
+  /** Enemies this tower finished off; they set its rank. */
+  kills: number;
 }
 
 export interface Zone { kind: 'stasis' | 'bounty'; x: number; y: number; untilTick: number }
@@ -90,6 +94,15 @@ export interface State {
   options: { autoUpgrade: boolean; autoCast: boolean };
   /** A brand-new game's first wave waits until a tower stands, so reading the screen costs nothing. */
   holdForTower: boolean;
+  map: MapId;
+  /** The map to switch to when the next wave starts. */
+  nextMap: MapId;
+  /** Experience toward the Warden's next level, in gold. */
+  heroXp: Decimal;
+  /** Steps until the Warden can move again. */
+  heroMoveTicks: number;
+  /** Steps until the next tap lands. */
+  tapTicks: number;
 }
 
 export type OptionName = 'autoAdvance' | 'autoUpgrade' | 'autoCast';
@@ -102,7 +115,14 @@ export type Command =
   | { type: 'cast'; ability: AbilityKind; x: number; y: number }
   | { type: 'prestige' }
   | { type: 'buyPermanent'; upgrade: PermanentKind }
-  | { type: 'setOption'; option: OptionName; value: boolean };
+  | { type: 'setOption'; option: OptionName; value: boolean }
+  | { type: 'setMap'; map: MapId }
+  /** Places the Warden, or moves it, to an empty slot. */
+  | { type: 'placeHero'; slot: number }
+  | { type: 'tap'; x: number; y: number }
+  | { type: 'callWave' }
+  /** Merges the tower in `from` into the one in `slot`. */
+  | { type: 'merge'; slot: number; from: number };
 
 export type CommandResult = { ok: true } | { ok: false; reason: string };
 
@@ -116,6 +136,11 @@ export type SimEvent =
   | { type: 'waveStart'; wave: number }
   | { type: 'waveClear'; wave: number }
   | { type: 'waveLost'; wave: number; nextWave: number }
-  | { type: 'prestige'; cores: Decimal; wave: number };
+  | { type: 'prestige'; cores: Decimal; wave: number }
+  | { type: 'tap'; enemyId: number; x: number; y: number }
+  | { type: 'rankUp'; slot: number; kind: TowerKind; rank: number }
+  | { type: 'heroLevel'; level: number }
+  | { type: 'merge'; slot: number; kind: TowerKind; tier: number }
+  | { type: 'mapChange'; map: MapId };
 
 export interface StepResult { events: SimEvent[]; results: CommandResult[] }

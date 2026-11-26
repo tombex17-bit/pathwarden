@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GOLD } from '../../src/config/balance';
-import { PATH_LENGTH, pointAt } from '../../src/sim/path';
+import { pathLength, pointAt } from '../../src/sim/path';
 import { createNewGame, createState, step } from '../../src/sim/sim';
 import type { SimEvent, State } from '../../src/sim/types';
 import { buildSpawns, log10EnemyHp, slotCount } from '../../src/sim/waves';
@@ -8,10 +8,10 @@ import { addTower, build, buildAll, emptyField, hitIds, place, rich, run, until 
 
 describe('path', () => {
   it('is 44 cells long and follows its corners', () => {
-    expect(PATH_LENGTH).toBe(44);
-    expect(pointAt(0)).toEqual({ x: 0, y: 1 });
-    expect(pointAt(14.5)).toEqual({ x: 13, y: 2.5 });
-    expect(pointAt(44)).toEqual({ x: 16, y: 7 });
+    expect(pathLength('switchback')).toBe(44);
+    expect(pointAt('switchback', 0)).toEqual({ x: 0, y: 1 });
+    expect(pointAt('switchback', 14.5)).toEqual({ x: 13, y: 2.5 });
+    expect(pointAt('switchback', 44)).toEqual({ x: 16, y: 7 });
   });
 });
 
@@ -28,7 +28,7 @@ describe('wave contents', () => {
 
   it('follows the HP formula and stays finite at wave 10,000', () => {
     expect(10 ** log10EnemyHp(1, 'grunt')).toBeCloseTo(14, 9);
-    expect(10 ** log10EnemyHp(20, 'grunt')).toBeCloseTo(14 * 1.09 ** 19, 6);
+    expect(10 ** log10EnemyHp(20, 'grunt')).toBeCloseTo(14 * 1.095 ** 19, 6);
     expect(log10EnemyHp(10000, 'grunt')).toBeGreaterThan(308);
     expect(log10EnemyHp(10000, 'grunt')).toBeLessThan(400);
   });

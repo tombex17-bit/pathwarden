@@ -15,7 +15,7 @@ function ready(): State {
   s.gold = new Decimal(1e9);
   s.cores = new Decimal(2);
   for (const [slot, kind] of [[0, 'bolt'], [4, 'cannon']] as const) {
-    const t: Tower = { slot, kind, level: 30, spec: null, cooldown: 0, log10Damage: 0, locks: [], buildPaid: new Decimal(50), upgradesPaid: new Decimal(0) };
+    const t: Tower = { slot, kind, level: 30, spec: null, cooldown: 0, log10Damage: 0, locks: [], buildPaid: new Decimal(50), upgradesPaid: new Decimal(0), tier: 1, kills: 0 };
     refreshDamage(s, t);
     s.towers.push(t);
   }

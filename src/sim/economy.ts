@@ -47,8 +47,8 @@ export function sellValue(tower: Tower): Decimal {
   return tower.buildPaid.mul(REFUND.build).add(tower.upgradesPaid.mul(REFUND.upgrades));
 }
 
-/** Gold for killing one unit, before any bounty. */
-export function enemyGold(wave: number, kind: EnemyKind, greed: number): Decimal {
+/** Gold for killing one unit, before any bounty; `goldMult` is the map's. */
+export function enemyGold(wave: number, kind: EnemyKind, greed: number, goldMult = 1): Decimal {
   const mult = ENEMIES[kind].goldMult * (kind === 'boss' ? slotCount(wave) : 1);
-  return Decimal.pow(GOLD.growth, wave - 1).mul(GOLD.base * mult).mul(Decimal.pow(GREED_MULT, greed));
+  return Decimal.pow(GOLD.growth, wave - 1).mul(GOLD.base * mult * goldMult).mul(Decimal.pow(GREED_MULT, greed));
 }

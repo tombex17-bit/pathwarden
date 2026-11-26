@@ -2,7 +2,7 @@ import Decimal from 'break_infinity.js';
 import { TOWER_KINDS } from '../../src/config/balance';
 import { encode } from '../../src/platform/save';
 import { defaultSettings, type Settings } from '../../src/platform/settings';
-import { createState, step } from '../../src/sim/sim';
+import { createState, refreshDamage, step } from '../../src/sim/sim';
 import type { State } from '../../src/sim/types';
 import { addTower, place, seconds } from '../unit/helpers';
 
@@ -55,5 +55,45 @@ export function crowded(): State {
   for (let i = 0; i < 72; i++) place(s, kinds[i % 3]!, i * 0.28);
   place(s, 'boss', 5);
   for (let i = 0; i < 12; i++) addTower(s, i, TOWER_KINDS[i % 5]!, { spec: i % 2 ? 'a' : 'b' });
+  return s;
+}
+
+/** Wave 8 with the Warden unlocked, two Bolts ready to merge, and an empty field. */
+export function veteran(): State {
+  const s = createState(6, 8);
+  s.bestRun = s.bestEver = 7;
+  s.spawns = [];
+  s.waveTick = 100;
+  s.gold = new Decimal(5000);
+  addTower(s, 0, 'bolt', { level: 20 });
+  addTower(s, 1, 'bolt', { level: 22 });
+  s.towers[0]!.kills = 60;
+  s.towers[1]!.kills = 8;
+  return s;
+}
+
+/** Three slow Brutes held in a Stasis zone near the start, and no towers. */
+export function heldBrutes(): State {
+  const s = createState(2);
+  s.spawns = [];
+  for (const d of [3, 3.3, 3.6]) place(s, 'brute', d);
+  s.zones = [{ kind: 'stasis', x: 3.3, y: 1, untilTick: 1e6 }];
+  return s;
+}
+
+/** Crossroads with the Warden, a tier II Bolt of rank 3 and a wave in progress, for screenshots. */
+export function crossroads(): State {
+  const s = createState(8, 40);
+  s.map = s.nextMap = 'crossroads';
+  s.bestRun = s.bestEver = 39;
+  s.gold = new Decimal(2.5e4);
+  addTower(s, 2, 'cannon', { level: 45, spec: 'b' }).tier = 2;
+  s.towers[0]!.kills = 400;
+  addTower(s, 5, 'bolt', { level: 40 });
+  addTower(s, 6, 'frost', { level: 38 });
+  addTower(s, 1, 'tesla', { level: 35 });
+  s.towers.push({ ...s.towers[1]!, slot: 9, kind: 'warden', level: 60, kills: 30, buildPaid: new Decimal(0) });
+  for (const t of s.towers) refreshDamage(s, t);
+  for (let i = 0; i < seconds(6); i++) step(s);
   return s;
 }

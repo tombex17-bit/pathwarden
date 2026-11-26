@@ -9,7 +9,7 @@ export const BUILD_ORDER: readonly TowerKind[] = [
   'bolt', 'cannon', 'bolt', 'beam', 'tesla', 'frost', 'bolt', 'beam', 'cannon', 'tesla', 'beam', 'bolt',
 ];
 
-export const SPECS: Readonly<Record<TowerKind, SpecChoice>> = { bolt: 'a', cannon: 'b', frost: 'b', beam: 'a', tesla: 'b' };
+export const SPECS: Readonly<Record<TowerKind, SpecChoice>> = { bolt: 'a', cannon: 'b', frost: 'b', beam: 'a', tesla: 'b', warden: 'a' };
 
 export const specAt = (kind: TowerKind, level: number): SpecChoice | null => (level >= SPEC_LEVEL ? SPECS[kind] : null);
 

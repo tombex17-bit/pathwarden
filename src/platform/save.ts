@@ -1,13 +1,13 @@
 import Decimal from 'break_infinity.js';
-import { ABILITY_KINDS, ENEMIES, IDLE, TOWERS, WAVE, type AbilityKind, type EnemyKind, type TowerKind } from '../config/balance';
-import { GRID_H, GRID_W, SLOTS } from '../config/map';
+import { ABILITY_KINDS, ENEMIES, HERO, IDLE, MERGE, TOWERS, WAVE, type AbilityKind, type EnemyKind, type TowerKind } from '../config/balance';
+import { GRID_H, GRID_W, MAPS, SLOT_COUNT, type MapId } from '../config/map';
 import { createEnemy } from '../sim/enemies';
-import { PATH_LENGTH } from '../sim/path';
+import { pathLength } from '../sim/path';
 import { createState, refreshDamage } from '../sim/sim';
 import type { Enemy, State, Tower } from '../sim/types';
 import { DEFAULT_VOLUME, GUIDE_DONE, SPEEDS, type Settings, type Speed } from './settings';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 const EXPORT_PREFIX = 'TD1';
 const MAX_ITEMS = 500;
 
@@ -33,8 +33,9 @@ export function encode(state: State, settings: Settings, now: number): string {
       waveGold: num(waveGold),
       cores: num(cores),
       history: history.map((h) => ({ gold: num(h.gold), ticks: h.ticks })),
-      towers: towers.map(({ slot, kind, level, spec, cooldown, locks, buildPaid, upgradesPaid }) => (
-        { slot, kind, level, spec, cooldown, locks, buildPaid: num(buildPaid), upgradesPaid: num(upgradesPaid) }
+      heroXp: num(state.heroXp),
+      towers: towers.map(({ slot, kind, level, spec, cooldown, locks, buildPaid, upgradesPaid, tier, kills }) => (
+        { slot, kind, level, spec, cooldown, locks, buildPaid: num(buildPaid), upgradesPaid: num(upgradesPaid), tier, kills }
       )),
       enemies: enemies.map(({ id, kind, dist, prevDist, hp, shield, slows, brittleUntil, stasisTick, marked }) => (
         { id, kind, dist, prevDist, hp, shield, slows, brittleUntil, stasisTick, marked }
@@ -99,7 +100,7 @@ function readTower(v: unknown): Tower {
   const spec = r.spec;
   check(spec === null || spec === 'a' || spec === 'b');
   return {
-    slot: int(r.slot, 0, SLOTS.length - 1),
+    slot: int(r.slot, 0, SLOT_COUNT - 1),
     kind: key<TowerKind>(r.kind, TOWERS),
     level: int(r.level, 1),
     spec,
@@ -108,13 +109,15 @@ function readTower(v: unknown): Tower {
     locks: list(r.locks, (l) => ({ enemyId: int(obj(l).enemyId), sinceTick: int(obj(l).sinceTick) }), 10),
     buildPaid: decimal(r.buildPaid),
     upgradesPaid: decimal(r.upgradesPaid),
+    tier: int(r.tier, 1, MERGE.maxTier),
+    kills: int(r.kills),
   };
 }
 
 function readEnemy(state: State, v: unknown): Enemy {
   const r = obj(v);
   const kind = key<EnemyKind>(r.kind, ENEMIES);
-  const e = createEnemy(state, kind, real(r.dist, 0, PATH_LENGTH));
+  const e = createEnemy(state, kind, real(r.dist, 0, pathLength(state.map)));
   e.id = int(r.id);
   e.prevDist = real(r.prevDist, 0, e.dist);
   e.hp = real(r.hp, Number.MIN_VALUE, 1);
@@ -129,6 +132,9 @@ function readEnemy(state: State, v: unknown): Enemy {
 function readState(v: unknown): State {
   const r = obj(v);
   const s = createState(int(r.seed, -(2 ** 53), 2 ** 53), int(r.wave, 1));
+  // The map comes first: enemy positions and the Warden's reach depend on it.
+  s.map = key<MapId>(r.map, MAPS);
+  s.nextMap = key<MapId>(r.nextMap, MAPS);
   s.tick = int(r.tick);
   s.gold = decimal(r.gold);
   s.power = int(r.power);
@@ -145,8 +151,13 @@ function readState(v: unknown): State {
   s.history = list(r.history, (h) => ({ gold: decimal(obj(h).gold), ticks: int(obj(h).ticks, 1) }), IDLE.waves);
   s.spawns = list(r.spawns, (p) => ({ tick: int(obj(p).tick), kind: key<EnemyKind>(obj(p).kind, ENEMIES) }));
   check(s.spawns.every((p, i) => i === 0 || p.tick >= s.spawns[i - 1]!.tick));
-  s.towers = list(r.towers, readTower, SLOTS.length);
+  s.towers = list(r.towers, readTower, SLOT_COUNT);
   unique(s.towers.map((t) => t.slot));
+  const heroes = s.towers.filter((t) => t.kind === 'warden');
+  check(heroes.length <= 1 && heroes.every((h) => h.spec === null && h.tier === 1));
+  s.heroXp = decimal(r.heroXp);
+  s.heroMoveTicks = int(r.heroMoveTicks, 0, HERO.moveSeconds * 30);
+  s.tapTicks = int(r.tapTicks, 0, 30);
   for (const t of s.towers) refreshDamage(s, t);
   s.enemies = list(r.enemies, (e) => readEnemy(s, e));
   unique(s.enemies.map((e) => e.id));
@@ -162,8 +173,10 @@ function readState(v: unknown): State {
   s.clearedThisRun = int(r.clearedThisRun);
   s.holdForTower = bool(r.holdForTower);
   check(!s.holdForTower || (s.wave === 1 && s.towers.length === 0));
-  s.layout = list(r.layout, (k) => (k === null ? null : key<TowerKind>(k, TOWERS)), SLOTS.length);
-  check(s.layout.length === SLOTS.length);
+  s.layout = list(r.layout, (k) => (k === null ? null : key<TowerKind>(k, TOWERS)), SLOT_COUNT);
+  check(s.layout.length === SLOT_COUNT && !s.layout.includes('warden'));
+  check(s.bestEver >= MAPS[s.map].unlockWave && s.bestEver >= MAPS[s.nextMap].unlockWave);
+  check(heroes.length === 0 || s.bestEver >= HERO.unlockWave);
   const owned = obj(r.owned);
   const options = obj(r.options);
   s.owned = { autoUpgrade: bool(owned.autoUpgrade), autoCast: bool(owned.autoCast) };
@@ -196,7 +209,7 @@ const MIGRATIONS: Record<number, (save: Raw) => Raw> = {
         cores: [0, 0],
         prestiges: 0,
         clearedThisRun: state.bestRun,
-        layout: SLOTS.map(() => null),
+        layout: Array<null>(SLOT_COUNT).fill(null),
         owned: { autoUpgrade: false, autoCast: false },
         options: { autoUpgrade: false, autoCast: false },
       },
@@ -208,6 +221,19 @@ const MIGRATIONS: Record<number, (save: Raw) => Raw> = {
   3: (save) => ({
     ...save, v: 4, settings: { ...obj(save.settings), guide: GUIDE_DONE }, state: { ...obj(save.state), holdForTower: false },
   }),
+  // Version 5 added maps, the Warden, taps, tiers and ranks. Old games are on the first map, and kills start at 0.
+  4: (save) => {
+    const state = obj(save.state);
+    return {
+      ...save,
+      v: 5,
+      state: {
+        ...state,
+        map: 'switchback', nextMap: 'switchback', heroXp: [0, 0], heroMoveTicks: 0, tapTicks: 0,
+        towers: Array.isArray(state.towers) ? state.towers.map((t) => ({ ...obj(t), tier: 1, kills: 0 })) : state.towers,
+      },
+    };
+  },
 };
 
 export function decode(text: string): Decoded {

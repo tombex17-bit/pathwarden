@@ -6,6 +6,7 @@ import { Session } from '../../src/platform/session';
 import type { Settings } from '../../src/platform/settings';
 import { claimTab, type LocksLike } from '../../src/platform/tab-lock';
 import { createState, step } from '../../src/sim/sim';
+import { refreshAll } from '../../src/sim/towers';
 import type { Command, State } from '../../src/sim/types';
 import { addTower, run, until } from './helpers';
 
@@ -167,6 +168,22 @@ describe('bad saves are refused as corrupt', () => {
   });
 });
 
+/** Removes what saves before version 5 did not have. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function forgetVersion2(x: any): void {
+  for (const k of ['map', 'nextMap', 'heroXp', 'heroMoveTicks', 'tapTicks']) delete x.state[k];
+  for (const t of x.state.towers) {
+    delete t.tier;
+    delete t.kills;
+  }
+}
+
+it('version 4 saves are on the first map, with tier 1 towers and no kills', () => {
+  const data = load(edited((x) => { x.v = 4; forgetVersion2(x); }));
+  expect([data.state.map, data.state.nextMap, data.state.heroXp.toNumber()]).toEqual(['switchback', 'switchback', 0]);
+  expect(data.state.towers.every((t) => t.tier === 1 && t.kills === 0)).toBe(true);
+});
+
 describe('versions', () => {
   it('refuses a newer schema with its own reason', () => {
     expect(decode(edited((x) => { x.v = SAVE_VERSION + 1; }))).toEqual({ ok: false, reason: 'newer' });
@@ -176,9 +193,13 @@ describe('versions', () => {
     const s = busy();
     const v1 = edited((x) => {
       x.v = 1;
+      forgetVersion2(x);
       for (const k of ['cores', 'prestiges', 'clearedThisRun', 'layout', 'owned', 'options', 'holdForTower']) delete x.state[k];
     }, s);
     const data = load(v1);
+    // Saves from before ranks start every tower at 0 kills.
+    for (const t of s.towers) t.kills = 0;
+    refreshAll(s);
     expect(data.state).toEqual({ ...s, clearedThisRun: s.bestRun });
     expect(data.state.layout).toHaveLength(12);
   });
@@ -190,6 +211,7 @@ describe('versions', () => {
       delete x.settings;
       delete x.state.history;
       delete x.state.waveGold;
+      forgetVersion2(x);
       for (const k of ['cores', 'prestiges', 'clearedThisRun', 'layout', 'owned', 'options', 'holdForTower']) delete x.state[k];
     }, s);
     const data = load(v0);
@@ -198,6 +220,8 @@ describe('versions', () => {
     expect(data.state.history).toEqual([]);
     expect(data.state.waveGold.toNumber()).toBe(0);
     expect(data.state.gold.eq(s.gold)).toBe(true);
+    for (const t of s.towers) t.kills = 0;
+    refreshAll(s);
     expect(data.state.towers).toEqual(s.towers);
   });
 });

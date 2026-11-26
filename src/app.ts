@@ -139,9 +139,21 @@ function locate(clientX: number, clientY: number): { view: View; x: number; y: n
 }
 
 canvas.addEventListener('click', (e) => {
+  if (!session) return;
   const { view, x, y } = locate(e.clientX, e.clientY);
-  if (abilities.aiming) abilities.castAt(toGrid(view, x, y));
-  else hud.selectedSlot = slotAt(view, x, y);
+  if (abilities.aiming) {
+    abilities.castAt(toGrid(view, x, y));
+    return;
+  }
+  const slot = slotAt(view, x, y, session.state.map);
+  if (slot !== undefined) {
+    hud.selectedSlot = slot;
+    return;
+  }
+  // Away from slots, a click hits the nearest enemy; a click on nothing clears the selection.
+  send({ type: 'tap', ...toGrid(view, x, y) }, (result) => {
+    if (!result.ok) hud.selectedSlot = undefined;
+  });
 });
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();

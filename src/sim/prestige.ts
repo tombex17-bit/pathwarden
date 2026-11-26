@@ -1,8 +1,8 @@
 import Decimal from 'break_infinity.js';
 import { ABILITIES, AUTO_CAST_ABILITIES, GOLD, GREED_MULT, PERMANENT, PRESTIGE, TICKS_PER_SECOND, type PermanentKind } from '../config/balance';
-import { SLOTS } from '../config/map';
 import { bestTarget, cast, isUnlocked } from './abilities';
 import { buildCost, canAfford, upgradeCost } from './economy';
+import { builtTowers, heroOf, isHero, newTower, refreshAll } from './towers';
 import type { CommandResult, SimEvent, State } from './types';
 import { slotCount } from './waves';
 
@@ -24,7 +24,7 @@ export function headStartWave(bestEver: number): number {
   return Math.max(1, Math.floor(PRESTIGE.headStartShare * bestEver));
 }
 
-/** Gold a run starts with: 60 for the very first run, then enough for a quick start. */
+/** Gold a run starts with: GOLD.start for the very first run, then enough for a quick start. */
 export function startingGold(wave: number, greed: number, prestiges: number): Decimal {
   if (prestiges === 0) return new Decimal(GOLD.start);
   return Decimal.pow(GOLD.growth, wave - 1)
@@ -37,11 +37,16 @@ export function prestige(state: State, startWave: () => void): CommandResult {
   const blocker = prestigeBlocker(state);
   if (blocker) return no(blocker);
   state.cores = state.cores.add(coresFor(state.bestRun));
-  state.layout = SLOTS.map((_, i) => state.towers.find((t) => t.slot === i)?.kind ?? null);
+  state.layout = state.layout.map((_, i) => state.towers.find((t) => t.slot === i && !isHero(t))?.kind ?? null);
+  // The Warden stays in its slot but starts again at level 1.
+  const hero = heroOf(state);
   state.prestiges++;
   state.wave = headStartWave(state.bestEver);
   state.gold = startingGold(state.wave, state.greed, state.prestiges);
-  state.towers = [];
+  state.towers = hero ? [newTower(hero.slot, 'warden', new Decimal(0))] : [];
+  state.heroXp = new Decimal(0);
+  state.heroMoveTicks = 0;
+  refreshAll(state);
   state.bestRun = 0;
   state.clearedThisRun = 0;
   state.cooldowns = { meteor: 0, stasis: 0, bounty: 0, smite: 0 };
@@ -88,11 +93,11 @@ export function buyPermanent(state: State, kind: PermanentKind): CommandResult {
 export function autoUpgrade(state: State, build: (slot: number) => void, levelUp: (slot: number) => void): void {
   if (!state.owned.autoUpgrade || !state.options.autoUpgrade || state.tick % TICKS_PER_SECOND !== 0) return;
   const slot = state.layout.findIndex((kind, i) => kind !== null && !state.towers.some((t) => t.slot === i));
-  if (slot >= 0 && canAfford(state.gold, buildCost(state.towers.length))) {
+  if (slot >= 0 && canAfford(state.gold, buildCost(builtTowers(state)))) {
     build(slot);
     return;
   }
-  const cheapest = state.towers.reduce<(typeof state.towers)[number] | undefined>(
+  const cheapest = state.towers.filter((t) => !isHero(t)).reduce<(typeof state.towers)[number] | undefined>(
     (best, t) => (best && best.level <= t.level ? best : t), undefined,
   );
   if (cheapest && canAfford(state.gold, upgradeCost(cheapest.level))) levelUp(cheapest.slot);

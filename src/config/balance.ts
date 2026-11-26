@@ -15,7 +15,7 @@ export const WAVE = {
   bossGoldPerSlot: 0.5,
 } as const;
 
-export const HP = { base: 14, growth: 1.09 } as const;
+export const HP = { base: 14, growth: 1.095 } as const;
 export const GOLD = { base: 2, growth: 1.065, start: 70 } as const;
 
 export const BUILD_COST = { base: 50, growth: 1.6 } as const;
@@ -105,7 +105,8 @@ export const ENEMIES: Readonly<Record<EnemyKind, EnemyDef>> = {
   boss: { name: 'Boss', note: 'Costs all 10 lives if it gets through; slows work half as well', firstWave: 10, weight: 0, hpMult: 10, goldMult: WAVE.bossGoldPerSlot, speed: 1.3, leakLives: 10, slowTaken: 0.5 },
 };
 
-export type TowerKind = 'bolt' | 'cannon' | 'frost' | 'beam' | 'tesla';
+/** 'warden' is the hero: one per game, never built or bought. */
+export type TowerKind = 'bolt' | 'cannon' | 'frost' | 'beam' | 'tesla' | 'warden';
 export type SpecChoice = 'a' | 'b';
 
 export interface TowerStats {
@@ -187,6 +188,37 @@ export const TOWERS: Readonly<Record<TowerKind, TowerDef>> = {
       b: { name: 'Surge', text: 'Damage x1.5', change: { damage: 5 * 1.5 } },
     },
   },
+  warden: {
+    name: 'Warden', text: 'Your hero: levels up by itself and boosts towers nearby',
+    stats: { ...NO_TRAITS, damage: 6, hitsPerSecond: 1.5, range: 3 },
+    // The Warden never specializes; these only fill the shape every tower shares.
+    specs: { a: { name: '', text: '', change: {} }, b: { name: '', text: '', change: {} } },
+  },
 };
 
-export const TOWER_KINDS = Object.keys(TOWERS) as TowerKind[];
+/** Every kind, the Warden included. */
+export const ALL_TOWER_KINDS = Object.keys(TOWERS) as TowerKind[];
+/** The kinds a player can build. */
+export const TOWER_KINDS = ALL_TOWER_KINDS.filter((k) => k !== 'warden');
+
+// ---- Version 2 (SPEC section 19) ----
+
+/** The hero. It takes a slot, levels up from gold earned, and boosts towers near it. */
+export const HERO = {
+  unlockWave: 5,
+  /** Share of every kill's gold that the Warden gains as experience; a level costs what an upgrade would. */
+  xpShare: 0.5,
+  moveSeconds: 10,
+  /** Cells; neighbouring slots on the first map are 2.5 apart. */
+  auraRange: 2.6,
+  auraMult: 1.15,
+} as const;
+
+/** Tapping an enemy hits it for a slice of the formation's damage per second. */
+export const TAP = { radius: 0.6, dpsSeconds: 0.1, minDamage: 4, perSecond: 5 } as const;
+
+/** Two towers of the same kind, specialization and tier merge into the next tier. */
+export const MERGE = { minLevel: 10, maxTier: 3, tierMult: 2.5 } as const;
+
+/** Kills a tower needs for each rank; every rank multiplies its damage. */
+export const RANKS = { kills: [10, 50, 250, 1000, 5000], mult: 1.1 } as const;

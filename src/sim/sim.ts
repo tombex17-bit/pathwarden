@@ -1,18 +1,21 @@
 import Decimal from 'break_infinity.js';
-import { GOLD, SPEC_LEVEL, TICKS_PER_SECOND, TOWERS, WAVE, type TowerKind } from '../config/balance';
-import { SLOTS } from '../config/map';
-import { applyZones, cast, tickCooldowns } from './abilities';
-import { fireTowers } from './combat';
+import { GOLD, HERO, MERGE, SPEC_LEVEL, TAP, TICKS_PER_SECOND, TOWER_KINDS, WAVE, type TowerKind } from '../config/balance';
+import { FIRST_MAP, MAPS, MAP_IDS, SLOT_COUNT } from '../config/map';
+import { applyZones, cast, log10FormationDps, tickCooldowns } from './abilities';
+import { damage, distSq, fireTowers } from './combat';
 import { buildCost, levelsFor, pay, sellValue, upgradeCost } from './economy';
 import { createEnemy, moveEnemies } from './enemies';
 import { recordWave } from './idle';
 import { autoCast, autoUpgrade, buyPermanent, coresFor, prestige } from './prestige';
-import { log10Damage } from './stats';
-import type { Command, CommandResult, SimEvent, State, StepResult, Tower } from './types';
+import { HERO_MOVE_TICKS, builtTowers, heroOf, isHero, newTower, refreshAll, refreshDamage } from './towers';
+import type { Command, CommandResult, Enemy, SimEvent, State, StepResult } from './types';
 import { buildSpawns } from './waves';
+
+export { refreshDamage } from './towers';
 
 const MIN_WAVE_TICKS = WAVE.minSeconds * TICKS_PER_SECOND;
 const RESTART_TICKS = WAVE.restartSeconds * TICKS_PER_SECOND;
+const TAP_TICKS = Math.round(TICKS_PER_SECOND / TAP.perSecond);
 
 const OK: CommandResult = { ok: true };
 const no = (reason: string): CommandResult => ({ ok: false, reason });
@@ -25,9 +28,10 @@ export function createState(seed: number, wave = 1): State {
     spawns: [], enemies: [], towers: [], kills: 0,
     cooldowns: { meteor: 0, stasis: 0, bounty: 0, smite: 0 }, zones: [],
     waveGold: new Decimal(0), history: [],
-    cores: new Decimal(0), prestiges: 0, clearedThisRun: 0, layout: SLOTS.map(() => null),
+    cores: new Decimal(0), prestiges: 0, clearedThisRun: 0, layout: Array<null>(SLOT_COUNT).fill(null),
     owned: { autoUpgrade: false, autoCast: false }, options: { autoUpgrade: false, autoCast: false },
     holdForTower: false,
+    map: FIRST_MAP, nextMap: FIRST_MAP, heroXp: new Decimal(0), heroMoveTicks: 0, tapTicks: 0,
   };
   startWave(state, []);
   return state;
@@ -46,6 +50,8 @@ export function step(state: State, commands: readonly Command[] = []): StepResul
   const results = commands.map((c) => apply(state, c, events));
   state.tick++;
   tickCooldowns(state);
+  if (state.heroMoveTicks > 0) state.heroMoveTicks--;
+  if (state.tapTicks > 0) state.tapTicks--;
   autoUpgrade(
     state,
     (slot) => build(state, slot, state.layout[slot]!),
@@ -73,16 +79,17 @@ export function step(state: State, commands: readonly Command[] = []): StepResul
   fireTowers(state, events);
 
   state.waveTick++;
-  if (state.waveTick >= MIN_WAVE_TICKS && state.spawns.length === 0 && state.enemies.length === 0) {
-    clearWave(state, events);
-  }
+  if (waveDone(state) && state.waveTick >= MIN_WAVE_TICKS) clearWave(state, events);
   return { events, results };
 }
 
-/** Recomputes a tower's damage; call after anything that affects it changes. */
-export function refreshDamage(state: State, tower: Tower): void {
-  tower.log10Damage = log10Damage(tower.kind, tower.spec, tower.level, state.power);
+/** Everything has spawned and is gone; only the minimum wave length may be left. */
+function waveDone(state: State): boolean {
+  return state.restartTicks === 0 && !state.holdForTower && state.spawns.length === 0 && state.enemies.length === 0;
 }
+
+/** Whether the player can call the next wave now (SPEC section 19). */
+export const canCallWave = (state: State): boolean => waveDone(state) && state.waveTick < MIN_WAVE_TICKS;
 
 function apply(state: State, command: Command, events: SimEvent[]): CommandResult {
   switch (command.type) {
@@ -101,24 +108,41 @@ function apply(state: State, command: Command, events: SimEvent[]): CommandResul
     }
     case 'buyPermanent': {
       const result = buyPermanent(state, command.upgrade);
-      for (const t of state.towers) refreshDamage(state, t);
+      refreshAll(state);
       return result;
     }
+    case 'cast':
+      return cast(state, command.ability, command, events);
+    case 'setMap': {
+      if (!MAP_IDS.includes(command.map)) return no('No such map');
+      const { unlockWave } = MAPS[command.map];
+      if (state.bestEver < unlockWave) return no(`Clear wave ${unlockWave} first`);
+      state.nextMap = command.map;
+      return OK;
+    }
+    case 'tap':
+      return tap(state, command, events);
+    case 'callWave':
+      if (!canCallWave(state)) return no('The wave is still running');
+      clearWave(state, events);
+      return OK;
   }
-  if (command.type === 'cast') return cast(state, command.ability, command, events);
-  if (!SLOTS[command.slot]) return no('No such slot');
+
+  if (!Number.isInteger(command.slot) || command.slot < 0 || command.slot >= SLOT_COUNT) return no('No such slot');
   const tower = state.towers.find((t) => t.slot === command.slot);
 
   if (command.type === 'build') {
-    if (!Object.hasOwn(TOWERS, command.tower)) return no('No such tower');
+    if (!(TOWER_KINDS as readonly string[]).includes(command.tower)) return no('No such tower');
     if (tower) return no('Slot is taken');
     const result = build(state, command.slot, command.tower);
     // The player chose this slot, so the recorded layout no longer applies to it.
     if (result.ok) state.layout[command.slot] = null;
     return result;
   }
+  if (command.type === 'placeHero') return placeHero(state, command.slot, tower);
 
   if (!tower) return no('Slot is empty');
+  if (isHero(tower)) return no('The Warden levels up by itself and cannot be sold');
   switch (command.type) {
     case 'upgrade': {
       const count = levelsFor(command.amount, state.gold, tower.level);
@@ -141,22 +165,89 @@ function apply(state: State, command: Command, events: SimEvent[]): CommandResul
       state.towers = state.towers.filter((t) => t !== tower);
       state.layout[command.slot] = null;
       return OK;
+    case 'merge':
+      return merge(state, tower, command.from, events);
   }
 }
 
 function build(state: State, slot: number, kind: TowerKind): CommandResult {
-  const cost = buildCost(state.towers.length);
+  const cost = buildCost(builtTowers(state));
   if (!pay(state, cost)) return no('Not enough gold');
-  const built: Tower = {
-    slot, kind, level: 1, spec: null, cooldown: 0, log10Damage: 0,
-    locks: [], buildPaid: cost, upgradesPaid: new Decimal(0),
-  };
-  refreshDamage(state, built);
+  const built = newTower(slot, kind, cost);
   state.towers.push(built);
+  refreshDamage(state, built);
+  return OK;
+}
+
+/** Places the Warden on an empty slot, or moves it there. Towers near its old and new slot change damage. */
+function placeHero(state: State, slot: number, there: State['towers'][number] | undefined): CommandResult {
+  if (state.bestEver < HERO.unlockWave) return no(`Clear wave ${HERO.unlockWave} first`);
+  const hero = heroOf(state);
+  if (there) return no(there === hero ? 'The Warden is already there' : 'Slot is taken');
+  if (hero) {
+    if (state.heroMoveTicks > 0) return no('The Warden is still on the move');
+    hero.slot = slot;
+    hero.locks = [];
+    state.heroMoveTicks = HERO_MOVE_TICKS;
+  } else {
+    state.towers.push(newTower(slot, 'warden', new Decimal(0)));
+  }
+  refreshAll(state);
+  return OK;
+}
+
+/** Merges `from` into `tower`: one tier up, the higher level, both towers' kills and prices. Frees `from`. */
+function merge(state: State, tower: State['towers'][number], from: number, events: SimEvent[]): CommandResult {
+  const other = state.towers.find((t) => t.slot === from);
+  if (!other || other === tower) return no('Pick another tower to merge');
+  if (isHero(other)) return no('The Warden cannot merge');
+  if (other.kind !== tower.kind) return no('Only towers of the same kind merge');
+  if (other.spec !== tower.spec) return no('Both need the same specialization');
+  if (other.tier !== tower.tier) return no('Both need the same tier');
+  if (tower.tier >= MERGE.maxTier) return no('Already at the highest tier');
+  if (Math.min(tower.level, other.level) < MERGE.minLevel) return no(`Both need level ${MERGE.minLevel}`);
+  tower.tier++;
+  tower.level = Math.max(tower.level, other.level);
+  tower.kills += other.kills;
+  tower.buildPaid = tower.buildPaid.add(other.buildPaid);
+  tower.upgradesPaid = tower.upgradesPaid.add(other.upgradesPaid);
+  state.towers = state.towers.filter((t) => t !== other);
+  state.layout[tower.slot] = null;
+  state.layout[from] = null;
+  refreshDamage(state, tower);
+  events.push({ type: 'merge', slot: tower.slot, kind: tower.kind, tier: tower.tier });
+  return OK;
+}
+
+/** Hits the enemy nearest the point, if one is close enough, for a slice of the formation's damage per second. */
+function tap(state: State, at: { x: number; y: number }, events: SimEvent[]): CommandResult {
+  if (state.tapTicks > 0) return no('Too fast');
+  let target: Enemy | undefined;
+  let bestSq = TAP.radius ** 2;
+  for (const e of state.enemies) {
+    const d = distSq(e, at);
+    if (e.hp > 0 && d <= bestSq) {
+      target = e;
+      bestSq = d;
+    }
+  }
+  if (!target) return no('Nothing to hit');
+  state.tapTicks = TAP_TICKS;
+  events.push({ type: 'tap', enemyId: target.id, x: target.x, y: target.y });
+  const log10 = Math.max(log10FormationDps(state) + Math.log10(TAP.dpsSeconds), Math.log10(TAP.minDamage));
+  damage(state, target, log10, 1, false, events);
+  state.enemies = state.enemies.filter((e) => e.hp > 0);
   return OK;
 }
 
 function startWave(state: State, events: SimEvent[]): void {
+  if (state.nextMap !== state.map) {
+    state.map = state.nextMap;
+    state.zones = [];
+    // The Warden's reach depends on where slots are.
+    refreshAll(state);
+    events.push({ type: 'mapChange', map: state.map });
+  }
   state.attempt++;
   state.waveTick = 0;
   state.lives = WAVE.lives;

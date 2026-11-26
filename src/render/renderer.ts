@@ -1,7 +1,8 @@
-import { ABILITIES, type AbilityKind, type EnemyKind, type TowerKind } from '../config/balance';
-import { GRID_H, GRID_W, PATH, PATH_WIDTH, SLOTS, SLOT_RADIUS, type Point } from '../config/map';
+import { ABILITIES, HERO, type AbilityKind, type EnemyKind, type TowerKind } from '../config/balance';
+import { GRID_H, GRID_W, MAPS, PATH_WIDTH, SLOT_RADIUS, type MapId, type Point } from '../config/map';
 import { currentSlow } from '../sim/enemies';
-import { pointAt } from '../sim/path';
+import { pointAt, slotsOf } from '../sim/path';
+import { rankOf } from '../sim/stats';
 import { towerStats } from '../sim/stats';
 import type { SimEvent, State } from '../sim/types';
 import { COLORS } from './palette';
@@ -12,7 +13,7 @@ const SHOT_MS = 80;
 const DEATH_MS = 150;
 const CAST_MS = 250;
 
-const LIFE_MS = { shot: SHOT_MS, flash: SHOT_MS, death: DEATH_MS, cast: CAST_MS } as const;
+const LIFE_MS = { shot: SHOT_MS, flash: SHOT_MS, death: DEATH_MS, cast: CAST_MS, tap: DEATH_MS } as const;
 
 const ABILITY_COLORS = {
   meteor: COLORS.cannon, stasis: COLORS.frost, bounty: COLORS.gold, smite: COLORS.text,
@@ -25,6 +26,7 @@ type Effect = { ageMs: number } & (
   | { type: 'flash'; enemyId: number }
   | { type: 'cast'; ability: AbilityKind; at: Point; still: boolean }
   | { type: 'death'; kind: EnemyKind; at: Point }
+  | { type: 'tap'; at: Point }
 );
 
 /** Draws the state. It never changes the state. */
@@ -51,6 +53,8 @@ export class Renderer {
         this.effects.push({ type: 'flash', enemyId: e.enemyId, ageMs: 0 });
       } else if (e.type === 'cast') {
         this.effects.push({ type: 'cast', ability: e.ability, at: { x: e.x, y: e.y }, still, ageMs: 0 });
+      } else if (e.type === 'tap') {
+        this.effects.push({ type: 'tap', at: { x: e.x, y: e.y }, ageMs: 0 });
       } else if (e.type === 'death' && !still) {
         this.effects.push({ type: 'death', kind: e.kind, at: { x: e.x, y: e.y }, ageMs: 0 });
       }
@@ -78,10 +82,10 @@ export class Renderer {
     ctx.clip();
     const px = 1 / view.scale;
 
-    this.drawPath();
+    this.drawPath(state.map);
     this.drawZones(state, px);
     this.drawSlots(state, selectedSlot, px);
-    if (guideSlot !== undefined) this.drawGuide(guideSlot, px);
+    if (guideSlot !== undefined) this.drawGuide(state.map, guideSlot, px);
     this.drawEnemies(state, alpha, px);
     this.drawEffects(px);
     if (preview) this.drawRing(preview.ability, preview.at, px);
@@ -100,13 +104,13 @@ export class Renderer {
     this.view = fitView(canvas.clientWidth, canvas.clientHeight);
   }
 
-  private drawPath(): void {
+  private drawPath(map: MapId): void {
     const { ctx } = this;
     ctx.strokeStyle = COLORS.path;
     ctx.lineWidth = PATH_WIDTH;
     ctx.lineJoin = 'miter';
     ctx.beginPath();
-    for (const p of PATH) ctx.lineTo(p.x, p.y);
+    for (const p of MAPS[map].path) ctx.lineTo(p.x, p.y);
     ctx.stroke();
   }
 
@@ -134,7 +138,8 @@ export class Renderer {
   private drawSlots(state: State, selected: number | undefined, px: number): void {
     const { ctx } = this;
     ctx.lineWidth = 2 * px;
-    SLOTS.forEach((slot, i) => {
+    const slots = slotsOf(state.map);
+    slots.forEach((slot, i) => {
       const tower = state.towers.find((t) => t.slot === i);
       ctx.fillStyle = COLORS.panel;
       ctx.strokeStyle = i === selected ? COLORS.text : tower ? COLORS[tower.kind] : COLORS.path;
@@ -145,6 +150,20 @@ export class Renderer {
       if (tower) {
         ctx.fillStyle = COLORS[tower.kind];
         fillTower(ctx, tower.kind, slot);
+        // Merged tiers add rings; ranks show as dots underneath.
+        ctx.strokeStyle = COLORS[tower.kind];
+        for (let t = 1; t < tower.tier; t++) {
+          ctx.beginPath();
+          ctx.arc(slot.x, slot.y, SLOT_RADIUS + t * 5 * px, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        const rank = rankOf(tower.kills);
+        ctx.fillStyle = COLORS.gold;
+        for (let r = 0; r < rank; r++) {
+          ctx.beginPath();
+          ctx.arc(slot.x + (r - (rank - 1) / 2) * 0.14, slot.y + SLOT_RADIUS + 0.12, 0.05, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else {
         ctx.strokeStyle = COLORS.muted;
         ctx.beginPath();
@@ -158,18 +177,24 @@ export class Renderer {
 
     const tower = state.towers.find((t) => t.slot === selected);
     if (tower) {
-      const at = SLOTS[tower.slot]!;
+      const at = slots[tower.slot]!;
       ctx.strokeStyle = COLORS.muted;
       ctx.beginPath();
       ctx.arc(at.x, at.y, towerStats(tower.kind, tower.spec).range, 0, Math.PI * 2);
       ctx.stroke();
+      if (tower.kind === 'warden') {
+        ctx.strokeStyle = COLORS.warden;
+        ctx.beginPath();
+        ctx.arc(at.x, at.y, HERO.auraRange, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
   }
 
   /** A ring around the slot the guide points at. */
-  private drawGuide(slot: number, px: number): void {
+  private drawGuide(map: MapId, slot: number, px: number): void {
     const { ctx } = this;
-    const at = SLOTS[slot]!;
+    const at = slotsOf(map)[slot]!;
     ctx.strokeStyle = COLORS.gold;
     ctx.lineWidth = 2 * px;
     ctx.beginPath();
@@ -182,7 +207,7 @@ export class Renderer {
     const flashing = new Set(this.effects.flatMap((fx) => (fx.type === 'flash' ? [fx.enemyId] : [])));
     ctx.lineWidth = 2 * px;
     for (const e of state.enemies) {
-      const at = pointAt(e.prevDist + (e.dist - e.prevDist) * alpha);
+      const at = pointAt(state.map, e.prevDist + (e.dist - e.prevDist) * alpha);
       const radius = ENEMY_RADIUS[e.kind];
       ctx.fillStyle = flashing.has(e.id) ? COLORS.text : e.kind === 'boss' ? COLORS.boss : COLORS.enemy;
       traceEnemy(ctx, e.kind, at);
@@ -238,6 +263,12 @@ export class Renderer {
         ctx.fillStyle = ABILITY_COLORS[fx.ability];
         ctx.fill();
         ctx.globalAlpha = 1;
+      } else if (fx.type === 'tap') {
+        // A small ring where the tap landed; it stays still, so reduced motion keeps it.
+        ctx.strokeStyle = COLORS.text;
+        ctx.beginPath();
+        ctx.arc(fx.at.x, fx.at.y, 0.35, 0, Math.PI * 2);
+        ctx.stroke();
       } else if (fx.type === 'death') {
         ctx.globalAlpha = 1 - fx.ageMs / DEATH_MS;
         ctx.fillStyle = fx.kind === 'boss' ? COLORS.boss : COLORS.enemy;

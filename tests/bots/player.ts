@@ -1,8 +1,9 @@
-import { SPEC_LEVEL, TICKS_PER_SECOND, type PermanentKind } from '../../src/config/balance';
-import { SLOTS } from '../../src/config/map';
+import { HERO, SPEC_LEVEL, TICKS_PER_SECOND, type PermanentKind } from '../../src/config/balance';
+import { SLOT_COUNT } from '../../src/config/map';
 import { buildCost, canAfford, upgradeCost } from '../../src/sim/economy';
 import { permanentCost, prestigeBlocker } from '../../src/sim/prestige';
 import { step } from '../../src/sim/sim';
+import { heroOf, isHero } from '../../src/sim/towers';
 import type { Command, SimEvent, State } from '../../src/sim/types';
 import { BUILD_ORDER, SPECS, castCommands } from './policy';
 
@@ -13,16 +14,29 @@ const PHASE = 10 * 60 * TICKS_PER_SECOND;
 const BUY_EVERY = 5 * TICKS_PER_SECOND;
 const STALL = 40 * 60 * TICKS_PER_SECOND;
 
-/** Every 5 s: the cheapest level, or the next tower in build order when it costs at most 1.5x that level. */
+/** The Warden's slot, the last one, kept free once it unlocks (SPEC section 19). */
+export const HERO_SLOT = 11;
+
+/**
+ * Every 5 s: place the Warden once it unlocks, then the cheapest level, or the next tower in build order when it
+ * costs at most 1.5x that level.
+ */
 export function buyCommands(state: State): Command[] {
   const commands: Command[] = [];
   let gold = state.gold;
-  const levels = new Map(state.towers.map((t) => [t.slot, t.level]));
+  const heroReady = state.bestEver >= HERO.unlockWave;
+  const taken = new Set(state.towers.map((t) => t.slot));
+  if (heroReady && !heroOf(state) && !taken.has(HERO_SLOT)) {
+    commands.push({ type: 'placeHero', slot: HERO_SLOT });
+    taken.add(HERO_SLOT);
+  }
+  if (heroReady) taken.add(HERO_SLOT);
+  const levels = new Map(state.towers.filter((t) => !isHero(t)).map((t) => [t.slot, t.level]));
   for (let guard = 0; guard < 10_000; guard++) {
     let cheapest: number | undefined;
     for (const [slot, level] of levels) if (cheapest === undefined || level < levels.get(cheapest)!) cheapest = slot;
     const levelCost = cheapest === undefined ? undefined : upgradeCost(levels.get(cheapest)!);
-    const nextSlot = SLOTS.findIndex((_, i) => !levels.has(i));
+    const nextSlot = Array.from({ length: SLOT_COUNT }, (_, i) => i).find((i) => !levels.has(i) && !taken.has(i)) ?? -1;
     const towerCost = buildCost(levels.size);
     if (nextSlot >= 0 && (!levelCost || towerCost.lte(levelCost.mul(1.5)))) {
       if (!canAfford(gold, towerCost)) break;

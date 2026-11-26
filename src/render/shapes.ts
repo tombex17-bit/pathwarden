@@ -73,5 +73,8 @@ function traceTower(ctx: Ctx, kind: TowerKind, at: Point): void {
       return circle(ctx, at, 0.13);
     case 'tesla':
       return path(ctx, at, [[0.06, -0.3], [-0.2, 0.06], [-0.03, 0.06], [-0.06, 0.3], [0.2, -0.06], [0.03, -0.06]]);
+    case 'warden':
+      // A shield, point down.
+      return path(ctx, at, [[-0.24, -0.25], [0.24, -0.25], [0.24, 0.06], [0, 0.3], [-0.24, 0.06]]);
   }
 }

@@ -9,13 +9,15 @@ export type Sound =
   | { name: 'ability'; ability: AbilityKind }
   | { name: 'purchase' }
   | { name: 'boss' }
-  | { name: 'prestige' };
+  | { name: 'prestige' }
+  | { name: 'tap' }
+  | { name: 'rank' };
 
 export type SoundName = Sound['name'];
 
 /** Most sounds of each kind per real second (SPEC section 13 limits shots to 8). */
 export const SOUNDS_PER_SECOND: Readonly<Record<SoundName, number>> = {
-  shot: 8, death: 8, leak: 4, ability: 8, purchase: 8, boss: 2, prestige: 2,
+  shot: 8, death: 8, leak: 4, ability: 8, purchase: 8, boss: 2, prestige: 2, tap: 8, rank: 4,
 };
 
 function soundFor(e: SimEvent): Sound | undefined {
@@ -26,6 +28,9 @@ function soundFor(e: SimEvent): Sound | undefined {
     case 'cast': return { name: 'ability', ability: e.ability };
     case 'waveStart': return hasBoss(e.wave) ? { name: 'boss' } : undefined;
     case 'prestige': return { name: 'prestige' };
+    case 'tap': return { name: 'tap' };
+    case 'rankUp':
+    case 'merge': return { name: 'rank' };
     default: return undefined;
   }
 }

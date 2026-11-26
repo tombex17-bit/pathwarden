@@ -1,12 +1,12 @@
 import Decimal from 'break_infinity.js';
 import { TICKS_PER_SECOND, type EnemyKind, type SpecChoice, type TowerKind } from '../../src/config/balance';
-import { SLOTS } from '../../src/config/map';
+import { SLOT_COUNT } from '../../src/config/map';
 import { createEnemy } from '../../src/sim/enemies';
 import { createState, refreshDamage, step } from '../../src/sim/sim';
 import type { Command, Enemy, SimEvent, State, Tower } from '../../src/sim/types';
 
 export const build = (slot: number, tower: TowerKind = 'bolt'): Command => ({ type: 'build', slot, tower });
-export const buildAll = (): Command[] => SLOTS.map((_, i) => build(i));
+export const buildAll = (): Command[] => Array.from({ length: SLOT_COUNT }, (_, i) => build(i));
 
 export function rich(state: State): State {
   state.gold = new Decimal('1e30');
@@ -32,7 +32,7 @@ export function addTower(
 ): Tower {
   const t: Tower = {
     slot, kind, level: options.level ?? 1, spec: options.spec ?? null, cooldown: 0, log10Damage: 0,
-    locks: [], buildPaid: new Decimal(50), upgradesPaid: new Decimal(0),
+    locks: [], buildPaid: new Decimal(50), upgradesPaid: new Decimal(0), tier: 1, kills: 0,
   };
   refreshDamage(state, t);
   if (options.weak) t.log10Damage = -99;
