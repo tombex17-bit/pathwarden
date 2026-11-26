@@ -1,0 +1,32 @@
+{
+  "name": "pathwarden",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "build": "vite build",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "test:e2e": "playwright test",
+    "bench": "vitest run --config vitest.bench.config.ts",
+    "bot:ratio": "node tests/bots/run.mjs ratio",
+    "bot:pacing": "node tests/bots/run.mjs pacing",
+    "icons": "node tools/make-icons.mjs",
+    "deploy": "node tools/deploy.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.10",
+    "eslint": "^10.15.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.74.0",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.2"
+  },
+  "dependencies": {
+    "break_infinity.js": "^2.2.0"
+  }
+}

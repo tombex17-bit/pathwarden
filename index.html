@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#12161F" />
+    <title>Pathwarden</title>
+    <meta name="description" content="Pathwarden: an endless tower defense game that keeps earning while you are away." />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="stylesheet" href="/src/ui/style.css" />
+  </head>
+  <body>
+    <div id="game">
+      <header id="top">
+        <span class="stat">Wave <b id="wave">1</b></span>
+        <span class="stat">Lives <b id="lives">10</b></span>
+        <span class="stat">Gold <b id="gold">60</b></span>
+        <span class="stat" id="best-stat">Best <b id="best">0</b></span>
+        <span class="stat">Cores <b id="cores">0</b></span>
+        <span id="controls">
+          <button id="speed" type="button">1x</button>
+          <button id="menu-open" type="button">Menu</button>
+        </span>
+      </header>
+      <main id="stage">
+        <canvas id="map" aria-label="Game map"></canvas>
+        <p id="banner" role="status" hidden></p>
+        <p id="toast" role="status" hidden></p>
+        <p id="warning" role="status" hidden></p>
+        <div id="away" role="status" hidden>
+          <p id="away-text"></p>
+          <button id="away-close" type="button" class="primary">Continue</button>
+        </div>
+      </main>
+      <div id="abilities" role="toolbar" aria-label="Abilities"></div>
+      <aside id="panel">
+        <h2 id="panel-title">Build</h2>
+        <p id="panel-text"></p>
+        <div id="shop" hidden></div>
+        <div id="tower" hidden>
+          <div id="specs" hidden></div>
+          <div id="amounts" role="group" aria-label="Levels to buy"></div>
+          <button id="upgrade" type="button" class="primary"></button>
+          <button id="sell" type="button"></button>
+        </div>
+        <label class="option"><input id="auto-advance" type="checkbox" checked /> Auto-advance waves</label>
+      </aside>
+    </div>
+    <dialog id="menu" aria-labelledby="menu-title">
+      <header>
+        <h2 id="menu-title">Menu</h2>
+        <button id="menu-close" type="button">Close</button>
+      </header>
+      <section>
+        <h3>Prestige</h3>
+        <p id="prestige-text"></p>
+        <button id="prestige" type="button" class="primary">Prestige</button>
+        <div id="prestige-confirm" hidden>
+          <p>Gold, towers and this run's progress are reset. Cores, upgrades and unlocked abilities stay.</p>
+          <div class="pair">
+            <button id="prestige-yes" type="button" class="primary">Prestige now</button>
+            <button id="prestige-no" type="button">Cancel</button>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h3>Permanent upgrades</h3>
+        <p id="cores-text"></p>
+        <div id="permanent"></div>
+        <label class="option"><input id="auto-upgrade" type="checkbox" disabled /> Auto-upgrade</label>
+        <label class="option"><input id="auto-cast" type="checkbox" disabled /> Auto-cast</label>
+      </section>
+      <section>
+        <h3>Sound</h3>
+        <label class="option"><input id="muted" type="checkbox" /> Mute</label>
+        <label class="option volume">Volume <input id="volume" type="range" min="0" max="100" step="5" /> <output id="volume-text" for="volume"></output></label>
+      </section>
+      <section id="export-section">
+        <h3>Export save</h3>
+        <p>Copy this text to back up your game or move it to another device.</p>
+        <textarea id="export-text" readonly rows="3" aria-label="Exported save"></textarea>
+        <button id="export-copy" type="button">Copy</button>
+      </section>
+      <section>
+        <h3>Import save</h3>
+        <textarea id="import-text" rows="3" aria-label="Save to import" placeholder="Paste exported text here"></textarea>
+        <button id="import-check" type="button">Import</button>
+        <p id="import-message" role="status" hidden></p>
+        <div id="import-confirm" class="pair" hidden>
+          <button id="import-yes" type="button" class="primary">Replace my game</button>
+          <button id="import-no" type="button">Cancel</button>
+        </div>
+      </section>
+      <section>
+        <h3>Start over</h3>
+        <button id="reset" type="button">Reset game</button>
+        <div id="reset-confirm" hidden>
+          <p>This erases all progress.</p>
+          <div class="pair">
+            <button id="reset-yes" type="button" class="primary">Erase everything</button>
+            <button id="reset-no" type="button">Cancel</button>
+          </div>
+        </div>
+      </section>
+    </dialog>
+    <div id="blocker" role="alertdialog" aria-labelledby="blocker-title" hidden>
+      <h2 id="blocker-title"></h2>
+      <p id="blocker-text"></p>
+      <button id="blocker-menu" type="button" class="primary">Import or start over</button>
+    </div>
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>
